@@ -111,7 +111,7 @@ def eat(player, food, game):
         game.score = game.score + 1
 
 
-def display_ui(game, score, record):
+def display_ui(game, score):
     myfont = pygame.font.SysFont('Segoe UI', 20)
     myfont_bold = pygame.font.SysFont('Segoe UI', 20, True)
     text_score = myfont.render('SCORE: ', True, (0, 0, 0))
@@ -157,7 +157,7 @@ def run(params):
     """
     Run the DQN algorithm, based on the parameters previously set.   
     """
-    listOfWords = processWordbank('wordback.txt')
+    listOfWords = processWordbank('wordbank.txt')
 
     agent = DQNAgent(params)
     agent = agent.to(DEVICE)
@@ -165,23 +165,24 @@ def run(params):
     counter_games = 0
     score_plot = []
     counter_plot = []
-    record = 0
-    total_score = 0
+
+    # play a certain number of games
     while counter_games < params['episodes']:
         # Initialize game state
         gameWordbank = random.sample(listOfWords, k=30)
         game = Game(gameWordbank, 8)
 
-        player1 = game.player
-        food1 = game.food
-
-        # Perform first move
-        initialize_game(player1, game, food1, agent, params['batch_size'])
+        # set initial player
+        team = "red"
+        # if logging, display board
         if params['display']:
-            display(player1, food1, game, record)
+            display(game)
+
+        # perform first move
+        initialize_game(player1, game, agent, params['batch_size'])
         
         steps = 0       # steps since the last positive reward
-        while (not game.crash) and (steps < 100):
+        while (not game.crash) and (not game.end):
             if not params['train']:
                 agent.epsilon = 0.01
             else:
@@ -189,8 +190,10 @@ def run(params):
                 agent.epsilon = 1 - (counter_games * params['epsilon_decay_linear'])
 
             # get old state
-            state_old = agent.get_state(game, player1, food1)
+            state_old = agent.get_state(game)
 
+            # --- CODEMASTER ---
+            # This should output 1 single word, w, and 1 integer, k
             # perform random actions based on agent.epsilon, or choose the action
             if random.uniform(0, 1) < agent.epsilon:
                 final_move = np.eye(3)[randint(0,2)]
@@ -207,10 +210,32 @@ def run(params):
 
             # set reward for the new state
             reward = agent.set_reward(player1, game.crash)
-            
-            # if food is eaten, steps is set to 0
-            if reward > 0:
-                steps = 0
+
+            # --- GUESSER ---
+            numGuesses = 0
+            guess = ""
+            while numGuesses < k+1 and guess != game.danger_word:
+                if random.uniform(0, 1) < agent.epsilon:
+                    final_move = np.eye(3)[randint(0,2)]
+                else:
+                    # predict action based on the old state
+                    with torch.no_grad():
+                        state_old_tensor = torch.tensor(state_old.reshape((1, 11)), dtype=torch.float32).to(DEVICE)
+                        prediction = agent(state_old_tensor)
+                        final_move = np.eye(3)[np.argmax(prediction.detach().cpu().numpy()[0])]
+
+                # perform new move and get new state
+                player1.do_move(final_move, player1.x, player1.y, game, food1, agent)
+                state_new = agent.get_state(game, player1, food1)
+
+                # set reward for the new state
+                reward = agent.set_reward(player1, game.crash)
+            if guess == game.danger_word:
+                game.end = True
+
+            # if team has won, set game.end = true
+            if (len(game.blue_words_remaining)) == 0 or (len(game.red_words_remaining)) == 0:
+                game.end = True
                 
             if params['train']:
                 # train short memory base on the new action and state
@@ -218,19 +243,19 @@ def run(params):
                 # store the new data into a long term memory
                 agent.remember(state_old, final_move, reward, state_new, game.crash)
 
-            record = get_record(game.score, record)
-            steps+=1
         if params['train']:
             agent.replay_new(agent.memory, params['batch_size'])
+
         counter_games += 1
-        total_score += game.score
         print(f'Game {counter_games}      Score: {game.score}')
         score_plot.append(game.score)
         counter_plot.append(counter_games)
+
     if params['train']:
         model_weights = agent.state_dict()
         torch.save(model_weights, params["weights_path"])
-    return total_score
+
+    return
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
