@@ -2,7 +2,12 @@ import os
 import argparse
 import numpy as np
 import matplotlib.pyplot as plt
-from DQN import DQNAgent
+from HumanCodemaster import HumanCodemaster
+from BlueCodemaster import BlueCodemaster
+from RedCodemaster import RedCodemaster
+from HumanGuesser import HumanGuesser
+from BlueGuesser import BlueGuesser
+from RedGuesser import RedGuesser
 from random import randint
 import random
 import statistics
@@ -50,93 +55,79 @@ class Game:
         self.neutral_words_remaining = wordList[2*per_team_count:len(wordList)-1]
         self.neutral_words_chosen = []
         self.danger_word = wordList[len(wordList)]
+        self.turn = 0
 
+    def do_hint(self, hint, game):
+        if game.turn == 0:
+            game.blue_hints.append(hint)
+        else:
+            game.red_hints.append(hint)
 
-class Player(object):
-    def __init__(self, game):
-        x = 0.45 * game.game_width
-        y = 0.5 * game.game_height
-        self.x = x - x % 20
-        self.y = y - y % 20
-        self.position = []
-        self.position.append([self.x, self.y])
-        self.food = 1
-        self.eaten = False
-        self.x_change = 20
-        self.y_change = 0
+    def do_guess(self, guess, game):
+        if guess in game.red_words_remaining:
+            game.red_words_remaining.remove(guess)
+            game.red_words_chosen.append(guess)
+        elif guess in game.blue_words_remaining:
+            game.blue_words_remaining.remove(guess)
+            game.blue_words_chosen.append(guess)
+        elif guess in game.neutral_words_remaining:
+            game.neutral_words_remaining.remove(guess)
+            game.neutral_words_chosen.append(guess)
+        elif guess == game.danger_word:
+            game.end = True
+        turn = 1 if turn == 0 else 0
 
-    def update_position(self, x, y):
-        if self.position[-1][0] != x or self.position[-1][1] != y:
-            if self.food > 1:
-                for i in range(0, self.food - 1):
-                    self.position[i][0], self.position[i][1] = self.position[i + 1]
-            self.position[-1][0] = x
-            self.position[-1][1] = y
+    def get_state(self):
+        """
+        Return the state.
+        The state is a numpy array of 5 numpy arrays, representing:
+            - own team's hints
+            - own team's found words
+            - opposing team's guesses
+            - opposing team's found words
+            - remaining words
+        """
+        state = [
+            np.asarray(self.red_hints),
+            np.asarray(self.red_words_chosen),
+            np.asarray(self.blue_hints),
+            np.asarray(self.blue_words_chosen),
+            np.asarray(self.red_words_remaining + self.blue_words_remaining + self.neutral_words_chosen + self.danger_word),
+        ]
 
-    def do_move(self, move, x, y, game, food):
-        move_array = [self.x_change, self.y_change]
+        return np.asarray(state)
 
-        if self.eaten:
-            self.position.append([self.x, self.y])
-            self.eaten = False
-            self.food = self.food + 1
-        if np.array_equal(move, [1, 0, 0]):
-            move_array = self.x_change, self.y_change
-        elif np.array_equal(move, [0, 1, 0]) and self.y_change == 0:  # right - going horizontal
-            move_array = [0, self.x_change]
-        elif np.array_equal(move, [0, 1, 0]) and self.x_change == 0:  # right - going vertical
-            move_array = [-self.y_change, 0]
-        elif np.array_equal(move, [0, 0, 1]) and self.y_change == 0:  # left - going horizontal
-            move_array = [0, -self.x_change]
-        elif np.array_equal(move, [0, 0, 1]) and self.x_change == 0:  # left - going vertical
-            move_array = [self.y_change, 0]
-        self.x_change, self.y_change = move_array
-        self.x = x + self.x_change
-        self.y = y + self.y_change
+class bcolors:
+    HEADER = '\033[95m'
+    BLUE = '\033[94m'
+    CYAN = '\033[96m'
+    GREEN = '\033[92m'
+    YELLOW = '\033[93m'
+    RED = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
 
-        if self.x < 20 or self.x > game.game_width - 40 \
-                or self.y < 20 \
-                or self.y > game.game_height - 40 \
-                or [self.x, self.y] in self.position:
-            game.crash = True
-        eat(self, food, game)
+def display(game):
+    print('--- BOARD ---')
+    print(game.blue_words_remaining + game.red_words_remaining + game.neutral_words_remaining + game.danger_word)
+    print(bcolors.BLUE + "FOUND" + game.blue_words_chosen + bcolors.ENDC)
+    print(bcolors.BLUE + "HINTS" + game.blue_hints + bcolors.ENDC)
+    
+    print(bcolors.RED + "FOUND" + game.red_words_chosen + bcolors.ENDC)
+    print(bcolors.BLUE + "HINTS" + game.red_hints + bcolors.ENDC)
 
-        self.update_position(self.x, self.y)
-
-
-def eat(player, food, game):
-    if player.x == food.x_food and player.y == food.y_food:
-        food.food_coord(game, player)
-        player.eaten = True
-        game.score = game.score + 1
-
-
-def display_ui(game, score):
-    myfont = pygame.font.SysFont('Segoe UI', 20)
-    myfont_bold = pygame.font.SysFont('Segoe UI', 20, True)
-    text_score = myfont.render('SCORE: ', True, (0, 0, 0))
-    text_score_number = myfont.render(str(score), True, (0, 0, 0))
-    text_highest = myfont.render('HIGHEST SCORE: ', True, (0, 0, 0))
-    text_highest_number = myfont_bold.render(str(record), True, (0, 0, 0))
-    game.gameDisplay.blit(text_score, (45, 440))
-    game.gameDisplay.blit(text_score_number, (120, 440))
-    game.gameDisplay.blit(text_highest, (190, 440))
-    game.gameDisplay.blit(text_highest_number, (350, 440))
-    game.gameDisplay.blit(game.bg, (10, 10))
-
-
-def display(player, food, game, record):
-    game.gameDisplay.fill((255, 255, 255))
-    display_ui(game, game.score, record)
-    player.display_player(player.position[-1][0], player.position[-1][1], player.food, game)
-    food.display_food(food.x_food, food.y_food, game)
+    if game.turn == 0:
+        print("Red's Turn")
+    else:
+        print("Blue's Turn")
 
 
 def initialize_game(player, game, food, agent, batch_size):
-    state_init1 = agent.get_state(game, player, food)  # [0 0 0 0 0 0 0 0 0 1 0 0 0 1 0 0]
+    state_init1 = game.get_state()  # [0 0 0 0 0 0 0 0 0 1 0 0 0 1 0 0]
     action = [1, 0, 0]
     player.do_move(action, player.x, player.y, game, food, agent)
-    state_init2 = agent.get_state(game, player, food)
+    state_init2 = game.get_state()
     reward1 = agent.set_reward(player, game.crash)
     agent.remember(state_init1, action, reward1, state_init2, game.crash)
     agent.replay_new(agent.memory, batch_size)  
@@ -190,7 +181,7 @@ def run(params):
                 agent.epsilon = 1 - (counter_games * params['epsilon_decay_linear'])
 
             # get old state
-            state_old = agent.get_state(game)
+            state_old = game.get_state()
 
             # --- CODEMASTER ---
             # This should output 1 single word, w, and 1 integer, k
@@ -205,8 +196,8 @@ def run(params):
                     final_move = np.eye(3)[np.argmax(prediction.detach().cpu().numpy()[0])]
 
             # perform new move and get new state
-            player1.do_move(final_move, player1.x, player1.y, game, food1, agent)
-            state_new = agent.get_state(game, player1, food1)
+            game.do_hint(final_move, game)
+            state_new = game.get_state()
 
             # set reward for the new state
             reward = agent.set_reward(player1, game.crash)
@@ -225,8 +216,8 @@ def run(params):
                         final_move = np.eye(3)[np.argmax(prediction.detach().cpu().numpy()[0])]
 
                 # perform new move and get new state
-                player1.do_move(final_move, player1.x, player1.y, game, food1, agent)
-                state_new = agent.get_state(game, player1, food1)
+                game.do_guess(final_move, game)
+                state_new = game.get_state()
 
                 # set reward for the new state
                 reward = agent.set_reward(player1, game.crash)
@@ -261,11 +252,6 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     params = define_parameters()
 
-    parser.add_argument("codemasterRed", help="import string of form A.B.C.MyClass or 'human'")
-    parser.add_argument("guesserRed", help="import string of form A.B.C.MyClass or 'human'")
-    parser.add_argument("codemasterBlue", help="import string of form A.B.C.MyClass or 'human'")
-    parser.add_argument("guesserBlue", help="import string of form A.B.C.MyClass or 'human'")
-
     parser.add_argument("--no_log", help="Supress logging", action='store_true', default=False)
     parser.add_argument("--no_print", help="Supress printing", action='store_true', default=False)
     parser.add_argument("--game_name", help="Name of game in log", default="default")
@@ -274,12 +260,12 @@ if __name__ == '__main__':
     print("Args", args)
 
     # load codemaster classes
-    codemasterRed = HumanCodemaster if args.codemasterRed == "human" else import_string_to_class(args.codemasterRed)
-    codemasterBlue = HumanCodemaster if args.codemasterBlue == "human" else import_string_to_class(args.codemasterBlue)
+    codemasterRed = HumanCodemaster if args.codemasterRed == "human" else RedCodemaster
+    codemasterBlue = HumanCodemaster if args.codemasterBlue == "human" else BlueCodemaster
 
     # load guesser classes
-    guesserRed = HumanGuesser if args.guesserRed == "human" else import_string_to_class(args.guesserRed)
-    guesserBlue = HumanGuesser if args.guesserBlue == "human" else import_string_to_class(args.guesserBlue)
+    guesserRed = HumanGuesser if args.guesserRed == "human" else RedGuesser
+    guesserBlue = HumanGuesser if args.guesserBlue == "human" else BlueGuesser
 
     params['seed'] = randint()
 
