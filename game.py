@@ -171,6 +171,8 @@ def run(params):
 
         # perform first move
         initialize_game(player1, game, agent, params['batch_size'])
+        # TODO: need to assign player-per-turn and switch between turns
+        # TODO: need to differentiate guesser vs codemaster agents
         
         steps = 0       # steps since the last positive reward
         while (not game.crash) and (not game.end):
@@ -220,7 +222,7 @@ def run(params):
                 state_new = game.get_state()
 
                 # set reward for the new state
-                reward = agent.set_reward(player1, game.crash)
+                reward = agent.set_reward(game.crash)
             if guess == game.danger_word:
                 game.end = True
 
