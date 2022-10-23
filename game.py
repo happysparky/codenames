@@ -3,11 +3,9 @@ import argparse
 import numpy as np
 import matplotlib.pyplot as plt
 from HumanCodemaster import HumanCodemaster
-from BlueCodemaster import BlueCodemaster
-from RedCodemaster import RedCodemaster
+from Codemaster import Codemaster
 from HumanGuesser import HumanGuesser
-from BlueGuesser import BlueGuesser
-from RedGuesser import RedGuesser
+from Guesser import Guesser
 from random import randint
 import random
 import statistics
@@ -43,39 +41,52 @@ def define_parameters():
 
 class Game:
     """ Initialize PyGAME """
-    
+    ''' 
+    https://www.ultraboardgames.com/codenames/game-rules.php
+    The starting team has 1 more word to guess. We arbitrarily chose blue team to always starts first
+
+    look into generalizing the above  -- does the starting team have an advantage like in chess? The 1 extra word to guess
+    evens things out but still...
+
+    The number of words guessed is also fixed to 9 and 8 - hardcode per_team_count? 
+    '''
+
     def __init__(self, wordList, per_team_count):
         # sample |size| words
-        self.red_words_remaining = wordList[:per_team_count] # choose per_team_count
-        self.red_words_chosen = []
-        self.red_hints = []
-        self.blue_words_remaining = wordList[per_team_count:2*per_team_count] # choose per_team_count
+        self.blue_words_remaining = wordList[:per_team_count+1] # choose per_team_count
         self.blue_words_chosen = []
         self.blue_hints = []
-        self.neutral_words_remaining = wordList[2*per_team_count:len(wordList)-1]
+
+        self.red_words_remaining = wordList[per_team_count+1:2*per_team_count+1] # choose per_team_count
+        self.red_words_chosen = []
+        self.red_hints = []
+       
+        self.neutral_words_remaining = wordList[2*per_team_count+1:len(wordList)-1]
         self.neutral_words_chosen = []
         self.danger_word = wordList[len(wordList)]
+
+        # 0 represents blue's turn, 1 is red's turn
         self.turn = 0
-
-    def do_hint(self, hint, game):
-        if game.turn == 0:
-            game.blue_hints.append(hint)
+    
+    def do_hint(self, hint):
+        if self.turn == 0:
+            self.blue_hints.append(hint)
         else:
-            game.red_hints.append(hint)
-
-    def do_guess(self, guess, game):
-        if guess in game.red_words_remaining:
-            game.red_words_remaining.remove(guess)
-            game.red_words_chosen.append(guess)
-        elif guess in game.blue_words_remaining:
-            game.blue_words_remaining.remove(guess)
-            game.blue_words_chosen.append(guess)
-        elif guess in game.neutral_words_remaining:
-            game.neutral_words_remaining.remove(guess)
-            game.neutral_words_chosen.append(guess)
-        elif guess == game.danger_word:
-            game.end = True
-        turn = 1 if turn == 0 else 0
+            self.red_hints.append(hint)
+ 
+    def do_guess(self, guess):
+        if guess in self.red_words_remaining:
+            self.red_words_remaining.remove(guess)
+            self.red_words_chosen.append(guess)
+        elif guess in self.blue_words_remaining:
+            self.blue_words_remaining.remove(guess)
+            self.blue_words_chosen.append(guess)
+        elif guess in self.neutral_words_remaining:
+            self.neutral_words_remaining.remove(guess)
+            self.neutral_words_chosen.append(guess)
+        elif guess == self.danger_word:
+            self.end = True
+        self.turn = 1 if self.turn == 0 else 0
 
     def get_state(self):
         """
@@ -262,12 +273,12 @@ if __name__ == '__main__':
     print("Args", args)
 
     # load codemaster classes
-    codemasterRed = HumanCodemaster if args.codemasterRed == "human" else RedCodemaster
-    codemasterBlue = HumanCodemaster if args.codemasterBlue == "human" else BlueCodemaster
+    codemasterRed = HumanCodemaster if args.codemasterRed == "human" else Guesser
+    codemasterBlue = HumanCodemaster if args.codemasterBlue == "human" else Codemaster
 
     # load guesser classes
-    guesserRed = HumanGuesser if args.guesserRed == "human" else RedGuesser
-    guesserBlue = HumanGuesser if args.guesserBlue == "human" else BlueGuesser
+    guesserRed = HumanGuesser if args.guesserRed == "human" else Guesser
+    guesserBlue = HumanGuesser if args.guesserBlue == "human" else Guesser
 
     params['seed'] = randint()
 

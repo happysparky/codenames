@@ -10,7 +10,7 @@ import torch.optim as optim
 import copy
 DEVICE = 'cpu' # 'cuda' if torch.cuda.is_available() else 'cpu'
 
-class BlueGuesser(torch.nn.Module):
+class Guesser(torch.nn.Module):
     def __init__(self, params):
         super().__init__()
         self.reward = 0
@@ -60,10 +60,10 @@ class BlueGuesser(torch.nn.Module):
             - remaining words
         """
         state = [
-            np.asarray(game.blue_hints),
-            np.asarray(game.blue_words_chosen),
             np.asarray(game.red_hints),
             np.asarray(game.red_words_chosen),
+            np.asarray(game.blue_hints),
+            np.asarray(game.blue_words_chosen),
             np.asarray(game.red_words_remaining + game.blue_words_remaining + game.neutral_words_chosen + game.danger_word),
         ]
 
