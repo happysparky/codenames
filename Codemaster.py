@@ -10,6 +10,10 @@ import torch.optim as optim
 import copy
 DEVICE = 'cpu' # 'cuda' if torch.cuda.is_available() else 'cpu'
 
+'''
+can probably rename this class to AgentCodemaster or something to follow same pattern as humanCodemaster
+'''
+
 class Codemaster(torch.nn.Module):
     def __init__(self, params):
         super().__init__()
@@ -50,6 +54,8 @@ class Codemaster(torch.nn.Module):
         return x
 
     def set_reward(self, num_own_guessed, num_opposing_guessed, num_neutral_guessed, num_danger_guessed):
+        ''' I think the danger word penality needs to increase. Max an agent can get is +80 or +90 
+        if they guessed all 8 or 9 words in one go. Guessing the danger word should outweigh up to one step below'''
         """
         Return the reward.
         The reward is:

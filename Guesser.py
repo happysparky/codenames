@@ -10,6 +10,10 @@ import torch.optim as optim
 import copy
 DEVICE = 'cpu' # 'cuda' if torch.cuda.is_available() else 'cpu'
 
+'''
+can probably rename this class to AgentGuesser or something to match HumanGuesser
+'''
+
 class Guesser(torch.nn.Module):
     def __init__(self, params):
         super().__init__()

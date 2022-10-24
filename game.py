@@ -1,5 +1,6 @@
 import os
 import argparse
+from tkinter.tix import INTEGER
 import numpy as np
 import matplotlib.pyplot as plt
 from HumanCodemaster import HumanCodemaster
@@ -15,6 +16,7 @@ import datetime
 import argparse
 import os
 DEVICE = 'cpu' # 'cuda' if torch.cuda.is_available() else 'cpu'
+''' at some point go back and standardize upper camel case vs snake case'''
 
 #################################
 #   Define parameters manually  #
@@ -75,6 +77,13 @@ class Game:
         # 0 represents blue's turn, 1 is red's turn
         self.turn = 0
     
+    '''
+    Not sure what the codemaster's reward would be since it's dependent on how 
+    many words are able to be guessed at the next step. 
+
+    No direct comparison to the papers we were looking at before either since those didn't incorporate RL
+    (but they still must have had some kind of measurement for their reward function? -- look into this)
+    '''
     def do_hint(self, hint):
         if self.turn == 0:
             self.red_hints.append(hint)
@@ -95,7 +104,7 @@ class Game:
     able to still learn the optimal move (ie no repetitions), but it might take more training time. 
     '''
     # makes guesses and returns metrics of how good the guess is 
-    def try_guesses(self, guesses):
+    def do_guesses(self, guesses):
         num_own_guessed = 0
         num_opposing_guessed = 0
         num_neutral_guessed = 0
@@ -137,7 +146,7 @@ class Game:
                 break
             
         '''
-        i think we should split this out
+        i think we might want to split this out
         '''
         # if no team has won or lost, change turns
         if (len(self.red_words_remaining) != 0) and (len(self.blue_words_remaining) != 0) and (not self.end):
@@ -146,17 +155,7 @@ class Game:
 
         return num_own_guessed, num_opposing_guessed, num_neutral_guessed, num_danger_guessed
 
-    '''
-    Honestly not sure what the codemaster's reward would be since it's dependent on how 
-    many words are able to be guessed at the next step. 
-
-    No direct comparison to the papers we were looking at before either since those didn't incorporate RL
-    (but they still must have had some kind of measurement for their reward function? -- look into this)
-    '''
-    # returns metrics of how good the hint is 
-    def try_hint(self, hint):
-        return 0, 0, 0, 0
-
+    
 
     '''
     discuss how to represent the state
@@ -265,28 +264,55 @@ def display(game):
     else:
         print(bcolors.BLUE + "Blue's Turn" + bcolors.ENDC)
 
+# gets the hint and number of words the hint applies to. Ensures the hint and number of words the hint applies to is valid
+def get_humancodemaster_hint(human_codemaster, game):
+    gameWordBank = game.board
+    words_remaining = len(game.red_words_remaining) if game.turn == 0 else len(game.blue_words_remaining)
+
+    hint, num_words = human_codemaster.forward()
+
+    # the hint can't be a word on the board
+    # the number of words the hint applies to has to be > 0,  <= number of words remaining for the team, and an integer
+    while (hint in gameWordBank) or (num_words < 1) or (num_words > len(words_remaining)) or (not isinstance(num_words, int)):
+        if hint in gameWordBank:
+            print(hint + " is on the board, please come up with a different hint. ")
+
+        else:
+            print("The number of words this hint applies to is invalid. Please ensure that it is an integer, greater than 0, and \
+            less than or equal to " + str(words_remaining) + ", the number of words left to guess for your team. ")
+        hint, num_words = human_codemaster.forward()
+
+    return hint, num_words
 
 
-def initialize_game(game, codemasterRed, batch_size, listOfWords, gameWordBank):
+def codemaster_generate_random_hint(listOfWords, game):
+
+    hint = random.choice(listOfWords)
+    # ensure hint isn't in list of words
+    while hint in game.board:
+        hint = random.choice(listOfWords)
+
+    words_remaining = len(game.red_words_remaining) if game.turn == 0 else len(game.blue_words_remaining)
+    num_words = random.choice(range(1, words_remaining+1))
+
+    return hint, num_words
+
+
+def initialize_game(game, codemasterRed, listOfWords, batch_size):
 
     if type(codemasterRed) == HumanCodemaster:
-        hint, num_words = codemasterRed.forward()
-        while hint in gameWordBank:
-            print(hint + " is on the board, please come up with a different hint. ")
-            hint, num_words = codemasterRed.forward()
+        words_remaining = len(game.red_words_remaining)
+        hint, num_words = get_humancodemaster_hint(codemasterRed, game)
     else:
         # the model starts off by picking generating a hint for a random number of words for the starting team
         state_init1 = game.get_state()  
-        hint = random.choice(listOfWords)
-        # ensure hint isn't in list of words
-        while hint in gameWordBank
-            hint = random.choice(listOfWords)
-        num_words = random.choice(range(1, 10))
-        num_own_guessed, num_opposing_guessed, num_neutral_guessed, num_danger_guessed = codemasterRed.try_hint()
-        state_init2 = game.get_state()
-        reward = codemasterRed.set_reward(num_own_guessed, num_opposing_guessed, num_neutral_guessed, num_danger_guessed )
-        codemasterRed.remember(state_init1, hint, reward, state_init2, game.crash)
-        codemasterRed.replay_new(codemasterRed.memory, batch_size)  
+        hint, num_words = codemaster_generate_random_hint(listOfWords, game)
+
+    num_own_guessed, num_opposing_guessed, num_neutral_guessed, num_danger_guessed = codemasterRed.do_hint(hint, num_words)
+    state_init2 = game.get_state()
+    reward = codemasterRed.set_reward(num_own_guessed, num_opposing_guessed, num_neutral_guessed, num_danger_guessed )
+    codemasterRed.remember(state_init1, hint, reward, state_init2, game.crash)
+    codemasterRed.replay_new(codemasterRed.memory, batch_size)  
 
 def test(params):
     params['load_weights'] = True
@@ -323,7 +349,7 @@ def run(params):
             display(game)
 
         # perform first move
-        initialize_game(game, params["codemasterRed"], params["batch_size"], listOfWords, gameWordbank)
+        initialize_game(game, params["codemasterRed"], listOfWords, params["batch_size"])
         # TODO: need to assign player-per-turn and switch between turns
         # TODO: need to differentiate guesser vs codemaster agents
         
@@ -371,7 +397,7 @@ def run(params):
                         final_move = np.eye(3)[np.argmax(prediction.detach().cpu().numpy()[0])]
 
                 # perform new move and get new state
-                game.do_guess(final_move, game)
+                game.do_guesses(final_move, game)
                 state_new = game.get_state()
 
                 # set reward for the new state
