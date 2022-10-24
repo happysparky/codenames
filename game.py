@@ -27,14 +27,17 @@ def define_parameters():
     params['first_layer_size'] = 200    # neurons in the first layer
     params['second_layer_size'] = 20   # neurons in the second layer
     params['third_layer_size'] = 50    # neurons in the third layer
-    params['episodes'] = 250          
+    params['episodes'] = 1
+    # params['episodes'] = 250          
     params['memory_size'] = 2500
     params['batch_size'] = 1000
     # Settings
     params['weights_path'] = 'weights/weights.h5'
-    params['train'] = False
-    params["test"] = True
+    # Setting train to true and test to false for now
+    params['train'] = True
+    params["test"] = False
     params['plot_score'] = True
+    params['display'] = True
     params['log_path'] = 'logs/scores_' + str(datetime.datetime.now().strftime("%Y%m%d%H%M%S")) +'.txt'
     return params
 
@@ -43,7 +46,7 @@ class Game:
     """ Initialize PyGAME """
     ''' 
     https://www.ultraboardgames.com/codenames/game-rules.php
-    The starting team has 1 more word to guess. We arbitrarily chose blue team to always starts first
+    The starting team has 1 more word to guess. We arbitrarily chose red team to always starts first
 
     look into generalizing the above  -- does the starting team have an advantage like in chess? The 1 extra word to guess
     evens things out but still...
@@ -53,57 +56,141 @@ class Game:
 
     def __init__(self, wordList, per_team_count):
         # sample |size| words
-        self.blue_words_remaining = wordList[:per_team_count+1] # choose per_team_count
+        self.red_words_remaining = wordList[:per_team_count+1] # choose per_team_count
+        self.red_words_chosen = []
+        self.red_hints = []
+
+        self.blue_words_remaining = wordList[per_team_count+1:2*per_team_count+1] # choose per_team_count
         self.blue_words_chosen = []
         self.blue_hints = []
 
-        self.red_words_remaining = wordList[per_team_count+1:2*per_team_count+1] # choose per_team_count
-        self.red_words_chosen = []
-        self.red_hints = []
-       
+
         self.neutral_words_remaining = wordList[2*per_team_count+1:len(wordList)-1]
         self.neutral_words_chosen = []
-        self.danger_word = wordList[len(wordList)]
+        self.danger_word = wordList[len(wordList)-1]
 
+        # shuffle wordlist to create board 
+        random.shuffle(wordList) 
+        self.board = wordList
         # 0 represents blue's turn, 1 is red's turn
         self.turn = 0
     
     def do_hint(self, hint):
         if self.turn == 0:
-            self.blue_hints.append(hint)
-        else:
             self.red_hints.append(hint)
+        else:
+            self.blue_hints.append(hint) 
  
-    def do_guess(self, guess):
-        if guess in self.red_words_remaining:
-            self.red_words_remaining.remove(guess)
-            self.red_words_chosen.append(guess)
-        elif guess in self.blue_words_remaining:
-            self.blue_words_remaining.remove(guess)
-            self.blue_words_chosen.append(guess)
-        elif guess in self.neutral_words_remaining:
-            self.neutral_words_remaining.remove(guess)
-            self.neutral_words_chosen.append(guess)
-        elif guess == self.danger_word:
-            self.end = True
-        self.turn = 1 if self.turn == 0 else 0
 
+    '''
+    need to add checks (maybe in other functions, e.g. where we generate guesses or calculate the reward itself) for:
+    - ensuring no repeated gusses within the same list of guesses. For example, if the hint is (ocean, 3), the AI shouldn't
+    guess (fish, blue, fish)
+    - keep track of history of guessed words (in the sense they've been chosen, not in the sense they've been correctly gussed) for 
+    each team and apply a penalty if they've been guessed again  
+
+    another note - do we have to worry about things in this fine detail? Or can we assume the model itself will learn that the optimal 
+    move is to not repeat guesses? 
+    - if we don't encode a representation for failed guesses we've done in the past, that's losing out on info. I think the model should be
+    able to still learn the optimal move (ie no repetitions), but it might take more training time. 
+    '''
+    # makes guesses and returns metrics of how good the guess is 
+    def try_guesses(self, guesses):
+        num_own_guessed = 0
+        num_opposing_guessed = 0
+        num_neutral_guessed = 0
+        num_danger_guessed = 0
+
+        for guess in guesses:
+            if guess in self.red_words_remaining:
+                    self.red_words_remaining.remove(guess)
+                    self.red_words_chosen.append(guess)
+
+                    if self.turn == 0:
+                        num_own_guessed += 1
+                    else:
+                        num_opposing_guessed += 1
+                        # end turn if guessed opponent's word
+                        break
+
+            elif guess in self.blue_words_remaining:
+                self.blue_words_remaining.remove(guess)
+                self.blue_words_chosen.append(guess)
+
+                if self.turn == 1:
+                    num_own_guessed += 1
+                else:
+                    num_opposing_guessed += 1
+                    # end turn if guessed opponent's word
+                    break
+
+            elif guess in self.neutral_words_remaining:
+                self.neutral_words_remaining.remove(guess)
+                self.neutral_words_chosen.append(guess)
+
+                num_neutral_guessed += 1
+
+            elif guess == self.danger_word:
+                self.end = True
+                num_danger_guessed += 1
+                # end turn if gussed danger word
+                break
+            
+        '''
+        i think we should split this out
+        '''
+        # if no team has won or lost, change turns
+        if (len(self.red_words_remaining) != 0) and (len(self.blue_words_remaining) != 0) and (not self.end):
+            self.turn = 1 if self.turn == 0 else 0
+
+
+        return num_own_guessed, num_opposing_guessed, num_neutral_guessed, num_danger_guessed
+
+    '''
+    Honestly not sure what the codemaster's reward would be since it's dependent on how 
+    many words are able to be guessed at the next step. 
+
+    No direct comparison to the papers we were looking at before either since those didn't incorporate RL
+    (but they still must have had some kind of measurement for their reward function? -- look into this)
+    '''
+    # returns metrics of how good the hint is 
+    def try_hint(self, hint):
+        return 0, 0, 0, 0
+
+
+    '''
+    discuss how to represent the state
+    - should we stratify based on turn vs including all info
+        - stratifying based on turn means no adversial aspect, I think
+    '''
     def get_state(self):
         """
         Return the state.
         The state is a numpy array of 5 numpy arrays, representing:
-            - own team's hints
-            - own team's found words
-            - opposing team's guesses
-            - opposing team's found words
+            - red team's hints
+            - red team's found words
+            - blue team's guesses
+            - blue team's found words
             - remaining words
         """
+        '''
+        why are remaining words concatenated into one list?
+        I separated them out because the agent needs to distinguish which words it needs to choose
+        Kept the neutral words together because they don't matter too much
+            - it's possible that there might be an effect on the agent 'knowing' a neutral word has already been chosen, so revist separating them out later
+        '''
         state = [
             np.asarray(self.red_hints),
             np.asarray(self.red_words_chosen),
+            np.asarray(self.red_words_remaining),
             np.asarray(self.blue_hints),
             np.asarray(self.blue_words_chosen),
-            np.asarray(self.red_words_remaining + self.blue_words_remaining + self.neutral_words_chosen + self.danger_word),
+            np.asarray(self.blue_words_remaining),
+            np.asarray(self.neutral_words_chosen+self.neutral_words_remaining),
+            np.asarray(self.danger_word),
+            # why are these concatenated?
+            # np.asarray(self.red_words_remaining + self.blue_words_remaining + self.neutral_words_chosen + [self.danger_word], dtype=object),
+            
         ]
 
         return np.asarray(state)
@@ -115,33 +202,91 @@ class bcolors:
     GREEN = '\033[92m'
     YELLOW = '\033[93m'
     RED = '\033[91m'
+    WHITE = '\u001b[37m'
+    BLACK = '\u001b[30m'
     ENDC = '\033[0m'
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
 
-def display(game):
+def print_board(game):
     print('--- BOARD ---')
-    print(game.blue_words_remaining + game.red_words_remaining + game.neutral_words_remaining + game.danger_word)
-    print(bcolors.BLUE + "FOUND" + game.blue_words_chosen + bcolors.ENDC)
-    print(bcolors.BLUE + "HINTS" + game.blue_hints + bcolors.ENDC)
+
+
+    longest = 0
+    for word in game.board:
+        if len(word) > longest:
+            longest = len(word)
+
+    for idx in range(1, len(game.board)+1):
+        if idx % 5 == 0: 
+            end = "\n"
+        else:
+            end = " "
+
+        current_word = game.board[idx-1]
+        num_spaces = longest-len(current_word)
+
+        if current_word in game.red_words_remaining or current_word in game.red_words_chosen: 
+            print(bcolors.RED + current_word + bcolors.ENDC, end=end)
+        elif current_word in game.blue_words_remaining or current_word in game.blue_words_chosen:
+            print(bcolors.BLUE + current_word + bcolors.ENDC, end=end)
+        elif current_word in game.neutral_words_remaining or current_word in game.neutral_words_chosen: 
+            print(bcolors.WHITE + current_word + bcolors.ENDC, end=end)
+        elif current_word in game.danger_word: 
+            print(bcolors.BLACK + current_word + bcolors.ENDC, end=end)
+
+        if end == " ":
+            for s in range(num_spaces):
+                print(end=" ")
+
+    # empty line for formatting purposes
+    print()
+
+def display(game):
+    print_board(game)
+    # print(game.blue_words_remaining + game.red_words_remaining + game.neutral_words_remaining + game.danger_word)
+        
+    print(bcolors.RED + "FOUND: " + str(game.red_words_chosen) + bcolors.ENDC)
+    print(bcolors.RED + "LEFT: " + str(game.red_words_remaining) + bcolors.ENDC)
+    print(bcolors.RED + "HINTS: " + str(game.red_hints) + bcolors.ENDC)
     
-    print(bcolors.RED + "FOUND" + game.red_words_chosen + bcolors.ENDC)
-    print(bcolors.BLUE + "HINTS" + game.red_hints + bcolors.ENDC)
+    print(bcolors.BLUE + "FOUND: " + str(game.blue_words_chosen) + bcolors.ENDC)
+    print(bcolors.BLUE + "LEFT: " + str(game.blue_words_remaining) + bcolors.ENDC)
+    print(bcolors.BLUE + "HINTS: " + str(game.blue_hints) + bcolors.ENDC)
+
+    print(bcolors.WHITE + "FOUND: " + str(game.neutral_words_chosen) + bcolors.ENDC)
+    print(bcolors.WHITE + "LEFT: " + str(game.neutral_words_remaining) + bcolors.ENDC)
+
+    print(bcolors.BLACK + "DANGER: " + str(game.danger_word) + bcolors.ENDC)
+
 
     if game.turn == 0:
-        print("Red's Turn")
+        print(bcolors.RED + "Red's Turn" + bcolors.ENDC)
     else:
-        print("Blue's Turn")
+        print(bcolors.BLUE + "Blue's Turn" + bcolors.ENDC)
 
 
-def initialize_game(player, game, food, agent, batch_size):
-    state_init1 = game.get_state()  # [0 0 0 0 0 0 0 0 0 1 0 0 0 1 0 0]
-    action = [1, 0, 0]
-    player.do_move(action, player.x, player.y, game, food, agent)
-    state_init2 = game.get_state()
-    reward1 = agent.set_reward(player, game.crash)
-    agent.remember(state_init1, action, reward1, state_init2, game.crash)
-    agent.replay_new(agent.memory, batch_size)  
+
+def initialize_game(game, codemasterRed, batch_size, listOfWords, gameWordBank):
+
+    if type(codemasterRed) == HumanCodemaster:
+        hint, num_words = codemasterRed.forward()
+        while hint in gameWordBank:
+            print(hint + " is on the board, please come up with a different hint. ")
+            hint, num_words = codemasterRed.forward()
+    else:
+        # the model starts off by picking generating a hint for a random number of words for the starting team
+        state_init1 = game.get_state()  
+        hint = random.choice(listOfWords)
+        # ensure hint isn't in list of words
+        while hint in gameWordBank
+            hint = random.choice(listOfWords)
+        num_words = random.choice(range(1, 10))
+        num_own_guessed, num_opposing_guessed, num_neutral_guessed, num_danger_guessed = codemasterRed.try_hint()
+        state_init2 = game.get_state()
+        reward = codemasterRed.set_reward(num_own_guessed, num_opposing_guessed, num_neutral_guessed, num_danger_guessed )
+        codemasterRed.remember(state_init1, hint, reward, state_init2, game.crash)
+        codemasterRed.replay_new(codemasterRed.memory, batch_size)  
 
 def test(params):
     params['load_weights'] = True
@@ -152,18 +297,17 @@ def test(params):
 
 def processWordbank(filename):
     with open(filename, "r", encoding="utf-8") as f:
-        new_lines = [s for s in f.readlines()]
+        new_lines = [s.strip() for s in f.readlines()]
         return new_lines
+
 
 def run(params):
     """
     Run the DQN algorithm, based on the parameters previously set.   
     """
-    listOfWords = processWordbank('wordbank.txt')
 
-    agent = DQNAgent(params)
-    agent = agent.to(DEVICE)
-    agent.optimizer = optim.Adam(agent.parameters(), weight_decay=0, lr=params['learning_rate'])
+    listOfWords = processWordbank('wordbank.txt')
+       
     counter_games = 0
     score_plot = []
     counter_plot = []
@@ -171,17 +315,15 @@ def run(params):
     # play a certain number of games
     while counter_games < params['episodes']:
         # Initialize game state
-        gameWordbank = random.sample(listOfWords, k=30)
+        gameWordbank = random.sample(listOfWords, k=25)
         game = Game(gameWordbank, 8)
 
-        # set initial player
-        team = "red"
         # if logging, display board
         if params['display']:
             display(game)
 
         # perform first move
-        initialize_game(player1, game, agent, params['batch_size'])
+        initialize_game(game, params["codemasterRed"], params["batch_size"], listOfWords, gameWordbank)
         # TODO: need to assign player-per-turn and switch between turns
         # TODO: need to differentiate guesser vs codemaster agents
         
@@ -261,33 +403,63 @@ def run(params):
 
     return
 
+def initialize_player(player, params):
+    if player == HumanCodemaster:
+        return HumanCodemaster()
+    elif player == HumanGuesser:
+        return HumanGuesser()
+    elif player == Codemaster:
+        agent = Codemaster(params)
+        agent = agent.to(DEVICE)
+        agent.optimizer = optim.Adam(agent.parameters(), weight_decay=0, lr=params['learning_rate'])
+        return agent
+    else:
+        agent = Guesser(params)
+        agent = agent.to(DEVICE)
+        agent.optimizer = optim.Adam(agent.parameters(), weight_decay=0, lr=params['learning_rate'])
+        return agent 
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     params = define_parameters()
+    
+    parser.add_argument("--codemasterRed", help="include this flag if you want this role to be played by a human", action="store_true")   
+    parser.add_argument("--codemasterBlue", help="include this flag if you want this role to be played by a human", action="store_true") 
+    parser.add_argument("--guesserRed", help="include this flag if you want this role to be played by a human", action="store_true")   
+    parser.add_argument("--guesserBlue", help="include this flag if you want this role to be played by a human", action="store_true")
 
     parser.add_argument("--no_log", help="Supress logging", action='store_true', default=False)
     parser.add_argument("--no_print", help="Supress printing", action='store_true', default=False)
     parser.add_argument("--game_name", help="Name of game in log", default="default")
-
+    
     args = parser.parse_args()
     print("Args", args)
 
     # load codemaster classes
-    codemasterRed = HumanCodemaster if args.codemasterRed == "human" else Guesser
-    codemasterBlue = HumanCodemaster if args.codemasterBlue == "human" else Codemaster
+    codemasterRed = HumanCodemaster if args.codemasterRed else Guesser
+    codemasterBlue = HumanCodemaster if args.codemasterBlue else Codemaster
 
     # load guesser classes
-    guesserRed = HumanGuesser if args.guesserRed == "human" else Guesser
-    guesserBlue = HumanGuesser if args.guesserBlue == "human" else Guesser
+    guesserRed = HumanGuesser if args.guesserRed else Guesser
+    guesserBlue = HumanGuesser if args.guesserBlue else Guesser
 
-    params['seed'] = randint()
+    '''
+    Not sure what this does so commenting it out for now
+    Also randint() requires positional arguments
+    '''
+    # params['seed'] = randint()
 
     if params['train']:
         print("Training...")
         params['load_weights'] = False   # when training, the network is not pre-trained
-        run(params)
     if params['test']:
         print("Testing...")
         params['train'] = False
         params['load_weights'] = True
-        run(params)
+
+    params["codemasterRed"] = initialize_player(codemasterRed, params)
+    params["codemasterBlue"] = initialize_player(codemasterBlue, params)
+    params["guesserRed"] = initialize_player(guesserRed, params)
+    params["guesserBlue"] = initialize_player(guesserBlue, params)
+
+    run(params)
