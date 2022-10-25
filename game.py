@@ -113,12 +113,13 @@ class Game:
 
     
 
+    # TODO: need to have separate get_state for codemaster and guesser (to have proper visibility per role)
     '''
     discuss how to represent the state
     - should we stratify based on turn vs including all info
         - stratifying based on turn means no adversial aspect, I think
     '''
-    def get_state(self):
+    def get_codemaster_state(self):
         """
         Return the state.
         The state is a numpy array of 5 numpy arrays, representing:
@@ -141,11 +142,39 @@ class Game:
             np.asarray(self.blue_hints),
             np.asarray(self.blue_words_chosen),
             np.asarray(self.blue_words_remaining),
-            np.asarray(self.neutral_words_chosen+self.neutral_words_remaining),
-            np.asarray(self.danger_word),
-            # why are these concatenated?
-            # np.asarray(self.red_words_remaining + self.blue_words_remaining + self.neutral_words_chosen + [self.danger_word], dtype=object),
-            
+            np.asarray(self.neutral_words_chosen),
+            np.asarray(self.neutral_words_remaining),
+            np.asarray(self.danger_word),    
+            np.asarray(self.all_guesses)        
+        ]
+
+        return np.asarray(state)
+
+    # TODO: need to have separate get_state for codemaster and guesser (to have proper visibility per role)
+    '''
+    discuss how to represent the state
+    - should we stratify based on turn vs including all info
+        - stratifying based on turn means no adversial aspect, I think
+    '''
+    def get_guesser_state(self):
+        """
+        Return the state.
+        The state is a numpy array of 5 numpy arrays, representing:
+            - red team's hints
+            - red team's found words
+            - blue team's guesses
+            - blue team's found words
+            - remaining words
+        """
+        remaining = sorted(self.blue_words_remaining + self.red_words_remaining + self.neutral_words_remaining + self.danger_word)
+        state = [
+            np.asarray(self.red_hints),
+            np.asarray(self.red_words_chosen),
+            np.asarray(self.blue_hints),
+            np.asarray(self.blue_words_chosen),
+            np.asarray(self.neutral_words_chosen),   
+            np.asarray(self.all_guesses),
+            np.asarray(remaining)     
         ]
 
         return np.asarray(state)
