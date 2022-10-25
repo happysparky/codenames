@@ -64,6 +64,10 @@ class Codemaster(torch.nn.Module):
             +10 when Player guesses own-team food
             -5 when Player guesses neutral word
         """
+
+        # TODO: add "don't-suggest-a-previous-hint" penalty
+        # TODO: don't give more a clue that applies to more words than there are left
+
         self.reward = 10*num_own_guessed - 10*num_opposing_guessed - 5*num_neutral_guessed - 50*num_danger_guessed
         return self.reward
 

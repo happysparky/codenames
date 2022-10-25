@@ -69,10 +69,10 @@ class Game:
         num_opposing_guessed = 0
         num_neutral_guessed = 0
         num_danger_guessed = 0
-        num_previously_guess = 0
+        num_previously_guessed = 0
 
         if guess in self.all_guesses:
-            num_previously_guess += 1
+            num_previously_guessed += 1
         else:
             self.all_guesses.append(guess)
 
@@ -104,7 +104,7 @@ class Game:
             self.end = True
             num_danger_guessed += 1
 
-        return num_own_guessed, num_opposing_guessed, num_neutral_guessed, num_danger_guessed
+        return num_own_guessed, num_opposing_guessed, num_neutral_guessed, num_danger_guessed, num_previously_guessed
 
     
 

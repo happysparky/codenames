@@ -81,8 +81,14 @@ class Guesser(torch.nn.Module):
             -10 when Player guesses opposing-team word. 
             +10 when Player guesses own-team food
             -5 when Player guesses neutral word
-            -100 whenn Player guesses a previously guessed word
+            -100 when Player guesses a previously guessed word
         """
+
+        '''
+        NOTE: later, we will try to improve this reward policy. One strategy would be to pass in the two teams' remaining word count. 
+        This difference (for example) should motivate a "trailing" team to be riskier
+        '''
+        
         self.reward = 10*num_own_guessed - 10*num_opposing_guessed - 5*num_neutral_guessed - 50*num_danger_guessed - 100*num_prev_guessed
         return self.reward
 

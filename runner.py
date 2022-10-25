@@ -45,8 +45,6 @@ def define_parameters():
     params['log_path'] = 'logs/scores_' + str(datetime.datetime.now().strftime("%Y%m%d%H%M%S")) +'.txt'
     return params
 
-
-
 def print_board(game):
     print('--- BOARD ---')
 
@@ -165,7 +163,6 @@ def processWordbank(filename):
         new_lines = [s.strip() for s in f.readlines()]
         return new_lines
 
-
 def run(params):
     """
     Run the session, based on the parameters previously set.   
@@ -223,7 +220,8 @@ def run(params):
             # --- GUESSER ---
             numGuesses = 0
             guess = ""
-            while numGuesses < k+1 and guess != game.danger_word:
+            turnChanged = False
+            while numGuesses < k+1 and guess != game.danger_word and game.end == False:
                 if random.uniform(0, 1) < agent.epsilon:
                     final_move = np.eye(3)[randint(0,2)]
                 else:
@@ -235,20 +233,21 @@ def run(params):
                         final_move = np.eye(3)[np.argmax(prediction.detach().cpu().numpy()[0])]
 
                 # perform new move and get new state
-                game.process_single_guess(final_move)
+                num_own_guessed, num_opposing_guessed, num_neutral_guessed, num_danger_guessed, num_previously_guessed = game.process_single_guess(final_move)
                 state_new = game.get_state()
 
                 # set reward for the new state
-                reward = agent.set_reward(game.crash)
+                reward = agent.set_reward(num_own_guessed, num_opposing_guessed, num_neutral_guessed, num_danger_guessed, num_previously_guessed)
 
+                # TODO: call model weight updates/loss/etc
 
+                # check if changing turns
+                if num_own_guessed == 0:
+                    break
 
-            # change turns as necessary
-            if (len(game.red_words_remaining) != 0) and (len(game.blue_words_remaining) != 0) and (not game.end):
-                self.turn = 1 if self.turn == 0 else 0
-
-            if guess == game.danger_word:
-                game.end = True
+            # change turn
+            self.turn = 1 if self.turn == 0 else 0
+            # TODO: note need to change agents being used
 
             # if team has won, set game.end = true
             if (len(game.blue_words_remaining)) == 0 or (len(game.red_words_remaining)) == 0:
