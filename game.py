@@ -57,12 +57,17 @@ class Game:
     No direct comparison to the papers we were looking at before either since those didn't incorporate RL
     (but they still must have had some kind of measurement for their reward function? -- look into this)
     '''
-    def process_hint(self, hint):
+    def process_hint(self, hint, count):
         if self.turn == 0:
             self.red_hints.append(hint)
+            if count > self.red_words_remaining:
+                count = self.red_words_remaining
         else:
             self.blue_hints.append(hint) 
- 
+            if count > self.blue_words_remaining:
+                count = self.blue_words_remaining
+        return count
+
     # makes guesses and returns metrics of how good the guess is 
     def process_single_guess(self, guess):
         num_own_guessed = 0

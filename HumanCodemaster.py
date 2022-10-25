@@ -6,3 +6,6 @@ class HumanCodemaster():
         hint = input("Enter your hint: ")
         numWords = input("Enter the number of words this applies to: ")
         return (hint, numWords)
+
+    def postprocess(self, game):
+        return

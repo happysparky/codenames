@@ -207,21 +207,22 @@ def run(params):
                 final_move = np.eye(3)[randint(0,2)]
             else:
                 # predict action based on the old state
+                # TODO: should be able to add in a "bounding factor" for telling the model a min and max for the count output
                 with torch.no_grad():
                     state_old_tensor = torch.tensor(state_old.reshape((1, 11)), dtype=torch.float32).to(DEVICE)
                     prediction = agent(state_old_tensor)
                     # TODO: generate word/number pair based on prediction
-                    final_move = np.eye(3)[np.argmax(prediction.detach().cpu().numpy()[0])]
+                    hint, count = np.eye(3)[np.argmax(prediction.detach().cpu().numpy()[0])]
 
             # perform new move and get new state
-            game.process_hint(final_move)
+            count = game.process_hint(hint, count)
             state_new = game.get_state()
 
             # --- GUESSER ---
             numGuesses = 0
             guess = ""
             turnChanged = False
-            while numGuesses < k+1 and guess != game.danger_word and game.end == False:
+            while numGuesses < count+1 and guess != game.danger_word and game.end == False:
                 if random.uniform(0, 1) < agent.epsilon:
                     final_move = np.eye(3)[randint(0,2)]
                 else:
@@ -242,7 +243,7 @@ def run(params):
                 # TODO: call model weight updates/loss/etc
 
                 # check if changing turns
-                if num_own_guessed == 0:
+                if num_own_guessed == 0 or (len(game.blue_words_remaining)) == 0 or (len(game.red_words_remaining)) == 0:
                     break
 
             # change turn
@@ -260,7 +261,8 @@ def run(params):
                 agent.remember(state_old, final_move, reward, state_new, game.crash)
 
 
-        # TODO: figure out what rewards to actually set
+        # TODO: figure out what rewards to actually set -- this is for the codemaster only
+        # TODO: need to add update weights etc.
         reward = agent.set_reward(player1, game.crash)
 
 

@@ -67,6 +67,7 @@ class Codemaster(torch.nn.Module):
 
         # TODO: add "don't-suggest-a-previous-hint" penalty
         # TODO: don't give more a clue that applies to more words than there are left
+        # TODO: add "don't suggest a number greater than the words remaining"
 
         self.reward = 10*num_own_guessed - 10*num_opposing_guessed - 5*num_neutral_guessed - 50*num_danger_guessed
         return self.reward
@@ -123,3 +124,8 @@ class Codemaster(torch.nn.Module):
         loss = F.mse_loss(output, target_f)
         loss.backward()
         self.optimizer.step()
+
+    def postprocess(self, game):
+        reward = self.set_reward(game.dnsaglnadsgf)
+        remmeber(reward)
+        train(reward)
