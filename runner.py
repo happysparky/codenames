@@ -135,21 +135,21 @@ def codemaster_generate_random_hint(listOfWords, game):
     return hint, num_words
 
 
-def initialize_game(game, codemasterRed, listOfWords, batch_size):
+def initialize_game(game, codemaster, listOfWords, batch_size):
 
-    if type(codemasterRed) == HumanCodemaster:
+    if type(codemaster) == HumanCodemaster:
         words_remaining = len(game.red_words_remaining)
-        hint, num_words = get_humancodemaster_hint(codemasterRed, game)
+        hint, num_words = get_humancodemaster_hint(codemaster, game)
     else:
         # the model starts off by picking generating a hint for a random number of words for the starting team
         state_init1 = game.get_state()  
         hint, num_words = codemaster_generate_random_hint(listOfWords, game)
 
-    num_own_guessed, num_opposing_guessed, num_neutral_guessed, num_danger_guessed = codemasterRed.process_hint(hint, num_words)
+    num_own_guessed, num_opposing_guessed, num_neutral_guessed, num_danger_guessed = game.process_hint(hint, num_words)
     state_init2 = game.get_state()
-    reward = codemasterRed.set_reward(num_own_guessed, num_opposing_guessed, num_neutral_guessed, num_danger_guessed )
-    codemasterRed.remember(state_init1, hint, reward, state_init2, game.crash)
-    codemasterRed.replay_new(codemasterRed.memory, batch_size)  
+    reward = codemaster.set_reward(num_own_guessed, num_opposing_guessed, num_neutral_guessed, num_danger_guessed )
+    codemaster.remember(state_init1, hint, reward, state_init2, game.crash)
+    codemaster.replay_new(codemasterRed.memory, batch_size)  
 
 def test(params):
     params['load_weights'] = True
@@ -184,18 +184,21 @@ def run(params):
         if params['display']:
             display(game)
 
+        curCodemaster = params["codemasterRed"]
+        curGuesser = params["guesserRed"]
+
         # perform first move
-        initialize_game(game, params["codemasterRed"], listOfWords, params["batch_size"])
-        # TODO: need to assign player-per-turn and switch between turns
-        # TODO: need to differentiate guesser vs codemaster agents
+        initialize_game(game, curCodemaster, listOfWords, params["batch_size"])
         
         steps = 0       # steps since the last positive reward
         while (not game.crash) and (not game.end):
             if not params['train']:
-                agent.epsilon = 0.01
+                curCodemaster.epsilon = 0.01
+                curGuesser.epsilon = 0.01
             else:
                 # agent.epsilon is set to give randomness to actions
-                agent.epsilon = 1 - (counter_games * params['epsilon_decay_linear'])
+                curCodemaster.epsilon = 1 - (counter_games * params['epsilon_decay_linear'])
+                curGuesser.epsilon = 1 - (counter_games * params['epsilon_decay_linear'])
 
             # get old state
             state_old = game.get_state()
@@ -203,14 +206,14 @@ def run(params):
             # --- CODEMASTER ---
             # This should output 1 single word, w, and 1 integer, k
             # perform random actions based on agent.epsilon, or choose the action
-            if random.uniform(0, 1) < agent.epsilon:
+            if random.uniform(0, 1) < curCodemaster.epsilon:
                 final_move = np.eye(3)[randint(0,2)]
             else:
                 # predict action based on the old state
                 # TODO: should be able to add in a "bounding factor" for telling the model a min and max for the count output
                 with torch.no_grad():
                     state_old_tensor = torch.tensor(state_old.reshape((1, 11)), dtype=torch.float32).to(DEVICE)
-                    prediction = agent(state_old_tensor)
+                    prediction = curCodemaster(state_old_tensor)
                     # TODO: generate word/number pair based on prediction
                     hint, count = np.eye(3)[np.argmax(prediction.detach().cpu().numpy()[0])]
 
@@ -223,14 +226,14 @@ def run(params):
             guess = ""
             turnChanged = False
             while numGuesses < count+1 and guess != game.danger_word and game.end == False:
-                if random.uniform(0, 1) < agent.epsilon:
+                if random.uniform(0, 1) < curGuesser.epsilon:
                     final_move = np.eye(3)[randint(0,2)]
                 else:
                     # predict action based on the old state
                     with torch.no_grad():
                         state_old_tensor = torch.tensor(state_old.reshape((1, 11)), dtype=torch.float32).to(DEVICE)
                         # TODO: generate single-word guess based on prediction
-                        prediction = agent(state_old_tensor)
+                        prediction = curGuesser(state_old_tensor)
                         final_move = np.eye(3)[np.argmax(prediction.detach().cpu().numpy()[0])]
 
                 # perform new move and get new state
@@ -238,7 +241,7 @@ def run(params):
                 state_new = game.get_state()
 
                 # set reward for the new state
-                reward = agent.set_reward(num_own_guessed, num_opposing_guessed, num_neutral_guessed, num_danger_guessed, num_previously_guessed)
+                reward = curGuesser.set_reward(num_own_guessed, num_opposing_guessed, num_neutral_guessed, num_danger_guessed, num_previously_guessed)
 
                 # TODO: call model weight updates/loss/etc
 
@@ -246,9 +249,7 @@ def run(params):
                 if num_own_guessed == 0 or (len(game.blue_words_remaining)) == 0 or (len(game.red_words_remaining)) == 0:
                     break
 
-            # change turn
-            self.turn = 1 if self.turn == 0 else 0
-            # TODO: note need to change agents being used
+
 
             # if team has won, set game.end = true
             if (len(game.blue_words_remaining)) == 0 or (len(game.red_words_remaining)) == 0:
@@ -256,14 +257,26 @@ def run(params):
                 
             if params['train']:
                 # train short memory base on the new action and state
-                agent.train_short_memory(state_old, final_move, reward, state_new, game.crash)
+                curCodemaster.train_short_memory(state_old, final_move, reward, state_new, game.crash)
+                curGuesser.train_short_memory(state_old, final_move, reward, state_new, game.crash)
                 # store the new data into a long term memory
-                agent.remember(state_old, final_move, reward, state_new, game.crash)
+                curCodemaster.remember(state_old, final_move, reward, state_new, game.crash)
+                curGuesser.remember(state_old, final_move, reward, state_new, game.crash)
 
+            # change turn
+            if game.turn == 0:
+                game.turn = 1
+                curCodemaster = params["codemasterRed"]
+                curGuesser = params["guesserRed"]
+            else:
+                game.turn = 0
+                curCodemaster = params["codemasterBlue"]
+                curGuesser = params["guesserBlue"]
 
         # TODO: figure out what rewards to actually set -- this is for the codemaster only
         # TODO: need to add update weights etc.
-        reward = agent.set_reward(player1, game.crash)
+        # TODO: these weight updates/trainings should probably be within the round's while loop (as opposed to only called when the game is over)
+        reward = curCodemaster.set_reward(player1, game.crash)
 
 
         if params['train']:

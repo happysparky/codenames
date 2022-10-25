@@ -166,7 +166,7 @@ class Game:
             - blue team's found words
             - remaining words
         """
-        remaining = sorted(self.blue_words_remaining + self.red_words_remaining + self.neutral_words_remaining + self.danger_word)
+        remaining = sorted(self.blue_words_remaining + self.red_words_remaining + self.neutral_words_remaining + [self.danger_word])
         state = [
             np.asarray(self.red_hints),
             np.asarray(self.red_words_chosen),
