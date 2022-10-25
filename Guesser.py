@@ -73,7 +73,7 @@ class Guesser(torch.nn.Module):
 
         return np.asarray(state)
 
-    def set_reward(self, num_own_guessed, num_opposing_guessed, num_neutral_guessed, num_danger_guessed):
+    def set_reward(self, num_own_guessed, num_opposing_guessed, num_neutral_guessed, num_danger_guessed, num_prev_guessed):
         """
         Return the reward.
         The reward is:
@@ -81,8 +81,9 @@ class Guesser(torch.nn.Module):
             -10 when Player guesses opposing-team word. 
             +10 when Player guesses own-team food
             -5 when Player guesses neutral word
+            -100 whenn Player guesses a previously guessed word
         """
-        self.reward = 10*num_own_guessed - 10*num_opposing_guessed - 5*num_neutral_guessed - 50*num_danger_guessed
+        self.reward = 10*num_own_guessed - 10*num_opposing_guessed - 5*num_neutral_guessed - 50*num_danger_guessed - 100*num_prev_guessed
         return self.reward
 
     def remember(self, state, action, reward, next_state, done):
