@@ -70,44 +70,47 @@ class Game:
 
     # makes guesses and returns metrics of how good the guess is 
     def process_single_guess(self, guess):
+        num_previously_guessed = 0
         num_own_guessed = 0
         num_opposing_guessed = 0
         num_neutral_guessed = 0
         num_danger_guessed = 0
-        num_previously_guessed = 0
 
         if guess in self.all_guesses:
             num_previously_guessed += 1
         else:
             self.all_guesses.append(guess)
 
-        if guess in self.red_words_remaining:
-            self.red_words_remaining.remove(guess)
-            self.red_words_chosen.append(guess)
+            if guess in self.red_words_remaining:
+                self.red_words_remaining.remove(guess)
+                self.red_words_chosen.append(guess)
 
-            if self.turn == 0:
-                num_own_guessed += 1
-            else:
-                num_opposing_guessed += 1
+                if self.turn == 0:
+                    num_own_guessed += 1
+                else:
+                    num_opposing_guessed += 1
 
-        elif guess in self.blue_words_remaining:
-            self.blue_words_remaining.remove(guess)
-            self.blue_words_chosen.append(guess)
+            elif guess in self.blue_words_remaining:
+                self.blue_words_remaining.remove(guess)
+                self.blue_words_chosen.append(guess)
 
-            if self.turn == 1:
-                num_own_guessed += 1
-            else:
-                num_opposing_guessed += 1
+                if self.turn == 1:
+                    num_own_guessed += 1
+                else:
+                    num_opposing_guessed += 1
 
-        elif guess in self.neutral_words_remaining:
-            self.neutral_words_remaining.remove(guess)
-            self.neutral_words_chosen.append(guess)
+            elif guess in self.neutral_words_remaining:
+                self.neutral_words_remaining.remove(guess)
+                self.neutral_words_chosen.append(guess)
 
-            num_neutral_guessed += 1
+                num_neutral_guessed += 1
 
-        elif guess == self.danger_word:
-            self.end = True
-            num_danger_guessed += 1
+            elif guess == self.danger_word:
+                self.end = True
+                num_danger_guessed += 1
+
+            if len(self.blue_words_remaining) == 0 or len(self.red_words_remaining) == 0:
+                self.end = True
 
         return num_own_guessed, num_opposing_guessed, num_neutral_guessed, num_danger_guessed, num_previously_guessed
 
