@@ -48,6 +48,10 @@ class Game:
         self.board = wordList
         # 0 represents blue's turn, 1 is red's turn
         self.turn = 0
+        self.end = False
+
+        ''' Set this to true somewhere'''
+        self.crash = False
 
     '''
     Not sure what the codemaster's reward would be since it's dependent on how 
@@ -59,11 +63,11 @@ class Game:
     def process_hint(self, hint, count):
         if self.turn == 0:
             self.red_hints.append(hint)
-            if count > self.red_words_remaining:
+            if count > len(self.red_words_remaining):
                 count = self.red_words_remaining
         else:
             self.blue_hints.append(hint) 
-            if count > self.blue_words_remaining:
+            if count > len(self.blue_words_remaining):
                 count = self.blue_words_remaining
         return count
 
@@ -187,7 +191,6 @@ class Game:
         # return the maximum number of guesses possible for this team
         return random.sample(unguessed_words, count)
         
-
     def generate_random_hint(self):
 
         hint = random.choice(self.board)

@@ -3,4 +3,7 @@ class HumanGuesser():
         return
 
     def forward(self):
-        return input("Enter your guess: ")
+        guess = input("Enter your guess: ")
+        guess = guess.strip()
+        guess = guess.lower()
+        return guess

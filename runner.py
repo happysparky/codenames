@@ -110,7 +110,7 @@ def get_humancodemaster_hint(human_codemaster, game):
 
     # the hint can't be a word on the board
     # the number of words the hint applies to has to be > 0,  <= number of words remaining for the team, and an integer
-    while (hint in gameWordBank) or (num_words < 1) or (num_words > len(words_remaining)) or (not isinstance(num_words, int)):
+    while (hint in gameWordBank) or (num_words < 1) or (num_words > words_remaining) or (not isinstance(num_words, int)):
         if hint in gameWordBank:
             print(hint + " is on the board, please come up with a different hint. ")
 
@@ -125,7 +125,6 @@ def get_humancodemaster_hint(human_codemaster, game):
 def initialize_game(game, codemaster, listOfWords, batch_size):
 
     if type(codemaster) == HumanCodemaster:
-        words_remaining = len(game.red_words_remaining)
         hint, count = get_humancodemaster_hint(codemaster, game)
     else:
         # the model starts off by picking generating a hint for a random number of words for the starting team
@@ -134,7 +133,7 @@ def initialize_game(game, codemaster, listOfWords, batch_size):
 
     num_own_guessed, num_opposing_guessed, num_neutral_guessed, num_danger_guessed = game.process_hint(hint, count)
     state_init2 = game.get_state()
-    reward = codemaster.set_reward(num_own_guessed, num_opposing_guessed, num_neutral_guessed, num_danger_guessed )
+    reward = codemaster.set_reward(num_own_guessed, num_opposing_guessed, num_neutral_guessed, num_danger_guessed)
     codemaster.remember(state_init1, hint, reward, state_init2, game.crash)
     codemaster.replay_new(codemasterRed.memory, batch_size)  
 
@@ -175,7 +174,7 @@ def run(params):
         curGuesser = params["guesserRed"]
 
         # perform first move
-        initialize_game(game, curCodemaster, listOfWords, params["batch_size"])
+        # initialize_game(game, curCodemaster, listOfWords, params["batch_size"])
         
         steps = 0       # steps since the last positive reward
         while (not game.crash) and (not game.end):
@@ -188,7 +187,8 @@ def run(params):
                 curGuesser.epsilon = 1 - (counter_games * params['epsilon_decay_linear'])
 
             # get old state
-            state_old = game.get_state()
+            codemaster_state_old = game.get_codemaster_state()
+            guesser_state_old = game.get_guesser_state()
 
             # --- CODEMASTER ---
             # This should output 1 single word, w, and 1 integer, k
@@ -203,7 +203,7 @@ def run(params):
                 # predict action based on the old state
                 # TODO: should be able to add in a "bounding factor" for telling the model a min and max for the count output
                 with torch.no_grad():
-                    state_old_tensor = torch.tensor(state_old.reshape((1, 11)), dtype=torch.float32).to(DEVICE)
+                    codemaster_state_old_tenser = torch.tensor(codemaster_state_old.reshape((1, 11)), dtype=torch.float32).to(DEVICE)
                     prediction = curCodemaster(state_old_tensor)
                     # TODO: generate word/number pair based on prediction
                     hint, count = np.eye(3)[np.argmax(prediction.detach().cpu().numpy()[0])]
