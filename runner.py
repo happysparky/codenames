@@ -303,18 +303,12 @@ def run(params):
                 reward Codemaster and reward Guesser a ton for winning (can be done above in the regular reward function too) (pass in the game state?)
             '''
 
-        # TODO: figure out what rewards to actually set -- this is for the codemaster only
-        # TODO: need to add update weights etc.
-        ''''
-        look back in the snake code and figure what this does
         '''
-        reward = curCodemaster.set_reward(game.state, game.crash)
-
-
+        different batch size for codemaster and guesser?
+        '''
         if params['train']:
             curCodemaster.replay_new(curCodemaster.memory, params['batch_size'])
             curGuesser.replay_new(curGuesser.memory, params['batch_size'])
-
 
         counter_games += 1
         print(f'Game {counter_games}      Score: {game.score}')
@@ -322,8 +316,11 @@ def run(params):
         counter_plot.append(counter_games)
 
     if params['train']:
-        model_weights = agent.state_dict()
-        torch.save(model_weights, params["weights_path"])
+        codemaster_model_weights = curCodemaster.state_dict()
+        torch.save(codemaster_model_weights, params["weights_path"])
+        
+        guesser_model_weights = curGuesser.state_dict()
+        torch.save(guesser_model_weights, params["weights_path"])
 
     return
 
