@@ -6,7 +6,6 @@ from Codemaster import Codemaster
 from HumanGuesser import HumanGuesser
 from Guesser import Guesser
 from random import randint
-from Game import Game
 import random
 import torch.optim as optim
 import argparse
@@ -181,3 +180,22 @@ class Game:
         ]
 
         return np.asarray(state)
+
+    def generate_random_guesses(self, count):
+        unguessed_words = set(self.board()).difference(set(self.all_guesses))
+
+        # return the maximum number of guesses possible for this team
+        return random.sample(unguessed_words, count)
+        
+
+    def generate_random_hint(self):
+
+        hint = random.choice(self.board)
+        # ensure hint isn't in list of words
+        while hint in self.all_guesses:
+            hint = random.choice(self.board)
+
+        words_remaining = len(self.red_words_remaining) if self.turn == 0 else len(self.blue_words_remaining)
+        num_words = random.choice(range(1, words_remaining+1))
+
+        return hint, num_words

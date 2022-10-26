@@ -121,26 +121,6 @@ def get_humancodemaster_hint(human_codemaster, game):
 
     return hint, num_words
 
-''' move generate random hint to guesser and codemaster classes later?'''
-def guesser_generate_random_guesses(game, count):
-    unguessed_words = set(game.board()).difference(set(game.all_guesses))
-
-    # return the maximum number of guesses possible for this team
-    return random.sample(unguessed_words, count)
-    
-
-def codemaster_generate_random_hint(listOfWords, game):
-
-    hint = random.choice(listOfWords)
-    # ensure hint isn't in list of words
-    while hint in game.board:
-        hint = random.choice(listOfWords)
-
-    words_remaining = len(game.red_words_remaining) if game.turn == 0 else len(game.blue_words_remaining)
-    num_words = random.choice(range(1, words_remaining+1))
-
-    return hint, num_words
-
 
 def initialize_game(game, codemaster, listOfWords, batch_size):
 
@@ -150,7 +130,7 @@ def initialize_game(game, codemaster, listOfWords, batch_size):
     else:
         # the model starts off by picking generating a hint for a random number of words for the starting team
         state_init1 = game.get_state()  
-        hint, count = codemaster_generate_random_hint(listOfWords, game)
+        hint, count = game.generate_random_hint()
 
     num_own_guessed, num_opposing_guessed, num_neutral_guessed, num_danger_guessed = game.process_hint(hint, count)
     state_init2 = game.get_state()
@@ -218,7 +198,7 @@ def run(params):
             than 'count'
             '''
             if random.uniform(0, 1) < curCodemaster.epsilon:
-                hint, count = codemaster_generate_random_hint(listOfWords, game)
+                hint, count = game.generate_random_hint()
             else:
                 # predict action based on the old state
                 # TODO: should be able to add in a "bounding factor" for telling the model a min and max for the count output
@@ -251,7 +231,7 @@ def run(params):
                 remaining = len(game.blue_words_remaining)
 
             if random.uniform(0, 1) < curGuesser.epsilon:
-                guesses = guesser_generate_random_guesses(game)
+                guesses = game.generate_random_guesses(remaining)
             else:
                 # predict action based on the old state
                 with torch.no_grad():
@@ -271,16 +251,16 @@ def run(params):
                 '''
                 Add a huge reward for winning the game. 
                 '''
-                guesser_reward = curGuesser.set_reward(num_own_guessed, num_opposing_guessed, num_neutral_guessed, num_danger_guessed, num_previously_guessed)
                 codemaster_reward = curCodemaster.set_reward(num_own_guessed, num_opposing_guessed, num_neutral_guessed, num_danger_guessed, num_previously_guessed)
+                guesser_reward = curGuesser.set_reward(num_own_guessed, num_opposing_guessed, num_neutral_guessed, num_danger_guessed, num_previously_guessed)
 
                 if params['train']:
                     # train short memory base on the new action and state
-                    curCodemaster.train_short_memory(state_old, guess, reward, state_new, game.crash)
-                    curGuesser.train_short_memory(state_old, guess, reward, state_new, game.crash)
+                    curCodemaster.train_short_memory(state_old, guess, codemaster_reward, state_new, game.crash)
+                    curGuesser.train_short_memory(state_old, guess, guesser_reward, state_new, game.crash)
                     # store the new data into a long term memory
-                    curCodemaster.remember(state_old, guess, reward, state_new, game.crash)
-                    curGuesser.remember(state_old, guess, reward, state_new, game.crash)
+                    curCodemaster.remember(state_old, guess, codemaster_reward, state_new, game.crash)
+                    curGuesser.remember(state_old, guess, guesser_reward, state_new, game.crash)
 
                 # TODO: call model weight updates/loss/etc
 
