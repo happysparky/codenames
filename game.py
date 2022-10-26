@@ -13,8 +13,6 @@ import os
 DEVICE = 'cpu' # 'cuda' if torch.cuda.is_available() else 'cpu'
 ''' at some point go back and standardize upper camel case vs snake case'''
 
-
-
 class Game:
     ''' 
     https://www.ultraboardgames.com/codenames/game-rules.php
@@ -117,9 +115,6 @@ class Game:
 
         return num_own_guessed, num_opposing_guessed, num_neutral_guessed, num_danger_guessed, num_previously_guessed
 
-    
-
-    # TODO: need to have separate get_state for codemaster and guesser (to have proper visibility per role)
     '''
     discuss how to represent the state
     - should we stratify based on turn vs including all info
@@ -135,12 +130,6 @@ class Game:
             - blue team's found words
             - remaining words
         """
-        '''
-        why are remaining words concatenated into one list?
-        I separated them out because the agent needs to distinguish which words it needs to choose
-        Kept the neutral words together because they don't matter too much
-            - it's possible that there might be an effect on the agent 'knowing' a neutral word has already been chosen, so revist separating them out later
-        '''
         state = [
             np.asarray(self.red_hints),
             np.asarray(self.red_words_chosen),
@@ -156,7 +145,6 @@ class Game:
 
         return np.asarray(state)
 
-    # TODO: need to have separate get_state for codemaster and guesser (to have proper visibility per role)
     '''
     discuss how to represent the state
     - should we stratify based on turn vs including all info
