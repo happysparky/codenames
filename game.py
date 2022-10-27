@@ -174,7 +174,7 @@ class Game:
         return np.asarray(state)
 
     def generate_random_guesses(self, count):
-        unguessed_words = set(self.board()).difference(set(self.all_guesses))
+        unguessed_words = set(self.board).difference(set(self.all_guesses))
 
         # return the maximum number of guesses possible for this team
         return random.sample(unguessed_words, count)

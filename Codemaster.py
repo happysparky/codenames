@@ -53,7 +53,7 @@ class Codemaster(torch.nn.Module):
         x = F.softmax(self.f4(x), dim=-1)
         return x
 
-    def set_reward(self, num_own_guessed, num_opposing_guessed, num_neutral_guessed, num_danger_guessed):
+    def set_reward(self, num_own_guessed, num_opposing_guessed, num_neutral_guessed, num_danger_guessed, num_previously_guessed, game_ended):
         ''' I think the danger word penality needs to increase. Max an agent can get is +80 or +90 
         if they guessed all 8 or 9 words in one go. Guessing the danger word should outweigh up to one step below'''
         """
@@ -127,5 +127,3 @@ class Codemaster(torch.nn.Module):
 
     def postprocess(self, game):
         reward = self.set_reward(game.dnsaglnadsgf)
-        remmeber(reward)
-        train(reward)

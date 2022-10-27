@@ -1,6 +1,5 @@
 import os
 import argparse
-from tkinter.tix import INTEGER
 import numpy as np
 import matplotlib.pyplot as plt
 from HumanCodemaster import HumanCodemaster
@@ -121,24 +120,6 @@ def get_humancodemaster_hint(human_codemaster, game):
 
     return hint, num_words
 
-
-def initialize_game(game, codemaster, listOfWords, batch_size):
-
-    if type(codemaster) == HumanCodemaster:
-        hint, count = get_humancodemaster_hint(codemaster, game)
-    else:
-        # the model starts off by picking generating a hint for a random number of words for the starting team
-        state_init1 = game.get_state()  
-        hint, count = game.generate_random_hint()
-
-    game.turn = 0
-
-    num_own_guessed, num_opposing_guessed, num_neutral_guessed, num_danger_guessed = game.process_hint(hint, count)
-    state_init2 = game.get_state()
-    reward = codemaster.set_reward(num_own_guessed, num_opposing_guessed, num_neutral_guessed, num_danger_guessed)
-    codemaster.remember(state_init1, hint, reward, state_init2, game.crash)
-    codemaster.replay_new(codemaster.memory, batch_size)  
-
 def test(params):
     params['load_weights'] = True
     params['train'] = False
@@ -175,8 +156,6 @@ def run(params):
         curCodemaster = params["codemasterRed"]
         curGuesser = params["guesserRed"]
 
-        # perform first move
-        initialize_game(game, curCodemaster, listOfWords, params["batch_size"])
         if game.turn == 0:
             game.turn = 1
             curCodemaster = params["codemasterBlue"]
@@ -186,6 +165,9 @@ def run(params):
             curCodemaster = params["codemasterRed"]
             curGuesser = params["guesserRed"]
         
+        '''
+        look into what steps is used for
+        '''
         steps = 0       # steps since the last positive reward
         while (not game.crash) and (not game.end):
             if not params['train']:
@@ -198,7 +180,6 @@ def run(params):
 
             # get old state
             codemaster_state_old = game.get_codemaster_state()
-            guesser_state_old = game.get_guesser_state()
 
             # --- CODEMASTER ---
             # This should output 1 single word, w, and 1 integer, k
@@ -220,18 +201,13 @@ def run(params):
 
             # perform new move and get new state
             count = game.process_hint(hint, count)
-            state_new = game.get_state()
+            # get old state
+
+            codemaster_state_new = game.get_codemaster_state()
+            guesser_state_old = game.get_guesser_state()
 
             # --- GUESSER ---
             guess = ""
-            '''
-            two options: 
-                1. generate all 5 words at once: pass in state_old_tensor and get a list of 5 words back
-                2. generate 5 words one at a time: use a for loop to get the max likelihood word one at a time
-
-            random chance to explore for the two above will look slightly different. I went with the first one 
-            because the second one is slightly more difficult to implement I think
-            '''
             # get maximum number of guesses possible amount of guesses back based on the hint
             if game.turn == 0:
                 remaining = len(game.red_words_remaining)
@@ -249,13 +225,11 @@ def run(params):
                     guesses = curGuesser(guesser_state_old_tensor, hint, remaining)
 
             # try each guess 
-            guessed_prev_correctly = True
             accumulated_own_guessed = 0
             accumulated_opposing_guessed = 0
             accumulated_neutral_guessed = 0
             accumulated_danger_guessed = 0
             accumulated_previously_guessed = 0
-            game_ended = False
             for guess in guesses:
                 # update the game state
                 num_own_guessed, num_opposing_guessed, num_neutral_guessed, num_danger_guessed, num_previously_guessed = game.process_single_guess(guess)
@@ -264,31 +238,32 @@ def run(params):
                 accumulated_neutral_guessed += num_neutral_guessed
                 accumulated_danger_guessed += num_danger_guessed
                 accumulated_previously_guessed += num_previously_guessed
-                game_ended = game_ended or game.end
 
-                state_new = game.get_guesser_state()
+                guesser_state_new = game.get_guesser_state()
 
                 # set reward for the new state
-                codemaster_reward = curCodemaster.set_reward(num_own_guessed, num_opposing_guessed, num_neutral_guessed, num_danger_guessed, num_previously_guessed, game_ended)
+                codemaster_reward = curCodemaster.set_reward(num_own_guessed, num_opposing_guessed, num_neutral_guessed, num_danger_guessed, num_previously_guessed, game.end)
+                guesser_reward = curGuesser.set_reward(num_own_guessed, num_opposing_guessed, num_neutral_guessed, num_danger_guessed, num_previously_guessed, game.end)
 
                 # perform model weight updates/loss/etc
                 if params['train']:
                     # train short memory base on the new action and state
-                    curGuesser.train_short_memory(guesser_state_old, guess, guesser_reward, state_new, game.crash)
+                    curGuesser.train_short_memory(guesser_state_old, guess, guesser_reward, guesser_state_new, game.crash)
                     # store the new data into a long term memory
-                    curGuesser.remember(guesser_state_old, guess, guesser_reward, state_new, game.crash)
+                    curGuesser.remember(guesser_state_old, guess, guesser_reward, guesser_state_new, game.crash)
 
-                # TODO: call model weight updates/loss/etc
-
-                # preemptively this turn if failed to guess correctly or game ends
+                # end this turn if failed to guess correctly or game ends
                 if num_own_guessed == 0 or game.end:
                     break
 
             # guesser reward and weight updates
-            guesser_reward = curGuesser.set_reward(accumulated_own_guessed, accumulated_opposing_guessed, accumulated_neutral_guessed, accumulated_danger_guessed, accumulated_previously_guessed, game_ended)
+            guesser_reward = curGuesser.set_reward(accumulated_own_guessed, accumulated_opposing_guessed, accumulated_neutral_guessed, accumulated_danger_guessed, accumulated_previously_guessed, game.end)
+            codemaster_reward = curCodemaster.set_reward(accumulated_own_guessed, accumulated_opposing_guessed, accumulated_neutral_guessed, accumulated_danger_guessed, accumulated_previously_guessed, game.end)
             if params['train']:
-                curCodemaster.train_short_memory(codemaster_state_old, hint, count, codemaster_reward, state_new, game.crash)
-                curCodemaster.remember(codemaster_state_old, hint, count, codemaster_reward, state_new, game.crash)
+                curCodemaster.train_short_memory(codemaster_state_old, hint, count, codemaster_reward, codemaster_state_new, game.crash)
+                curCodemaster.remember(codemaster_state_old, hint, count, codemaster_reward, codemaster_state_new, game.crash)
+                curGuesser.train_short_memory(guesser_state_old, guess, guesser_reward, guesser_state_new, game.crash)
+                curGuesser.remember(guesser_state_old, guess, guesser_reward, guesser_state_new, game.crash)
             
             # if the game hasn't ended, change turns
             if game.end == False:

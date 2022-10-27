@@ -73,7 +73,7 @@ class Guesser(torch.nn.Module):
 
         return np.asarray(state)
 
-    def set_reward(self, num_own_guessed, num_opposing_guessed, num_neutral_guessed, num_danger_guessed, num_prev_guessed):
+    def set_reward(self, num_own_guessed, num_opposing_guessed, num_neutral_guessed, num_danger_guessed, num_prev_guessed, game_ended):
         """
         Return the reward.
         The reward is:
