@@ -151,7 +151,7 @@ def processWordbank(filename):
         new_lines = [s.strip() for s in f.readlines()]
         vocab_to_index = {w: i for i, w in enumerate(new_lines)}
         index_to_vocab = {i: w for i, w in enumerate(new_lines)}
-        return new_lines, vocab_to_index
+        return new_lines, vocab_to_index, index_to_vocab
 
 def wordsToIndices(words, v2i):
     return [v2i[word] for word in words]
