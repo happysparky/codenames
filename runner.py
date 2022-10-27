@@ -78,22 +78,22 @@ def print_board(game):
     # empty line for formatting purposes
     print()
 
-def display(game):
+def display(game, i2v):
     print_board(game)
     # print(game.blue_words_remaining + game.red_words_remaining + game.neutral_words_remaining + game.danger_word)
         
-    print(bcolors.RED + "FOUND: " + str(game.red_words_chosen) + bcolors.ENDC)
-    print(bcolors.RED + "LEFT: " + str(game.red_words_remaining) + bcolors.ENDC)
-    print(bcolors.RED + "HINTS: " + str(game.red_hints) + bcolors.ENDC)
+    print(bcolors.RED + "FOUND: " + str(indicesToWords(game.red_words_chosen, i2v)) + bcolors.ENDC)
+    print(bcolors.RED + "LEFT: " + str(indicesToWords(game.red_words_remaining, i2v)) + bcolors.ENDC)
+    print(bcolors.RED + "HINTS: " + str(indicesToWords(game.red_hints, i2v)) + bcolors.ENDC)
     
-    print(bcolors.BLUE + "FOUND: " + str(game.blue_words_chosen) + bcolors.ENDC)
-    print(bcolors.BLUE + "LEFT: " + str(game.blue_words_remaining) + bcolors.ENDC)
-    print(bcolors.BLUE + "HINTS: " + str(game.blue_hints) + bcolors.ENDC)
+    print(bcolors.BLUE + "FOUND: " + str(indicesToWords(game.blue_words_chosen, i2v)) + bcolors.ENDC)
+    print(bcolors.BLUE + "LEFT: " + str(indicesToWords(game.blue_words_remaining, i2v)) + bcolors.ENDC)
+    print(bcolors.BLUE + "HINTS: " + str(indicesToWords(game.blue_hints, i2v)) + bcolors.ENDC)
 
-    print(bcolors.WHITE + "FOUND: " + str(game.neutral_words_chosen) + bcolors.ENDC)
-    print(bcolors.WHITE + "LEFT: " + str(game.neutral_words_remaining) + bcolors.ENDC)
+    print(bcolors.WHITE + "FOUND: " + str(indicesToWords(game.neutral_words_chosen, i2v)) + bcolors.ENDC)
+    print(bcolors.WHITE + "LEFT: " + str(indicesToWords(game.neutral_words_remaining, i2v)) + bcolors.ENDC)
 
-    print(bcolors.BLACK + "DANGER: " + str(game.danger_word) + bcolors.ENDC)
+    print(bcolors.BLACK + "DANGER: " + str(indicesToWords([game.danger_word], i2v)) + bcolors.ENDC)
 
 
     if game.turn == 0:
@@ -149,14 +149,22 @@ def test(params):
 def processWordbank(filename):
     with open(filename, "r", encoding="utf-8") as f:
         new_lines = [s.strip() for s in f.readlines()]
-        return new_lines
+        vocab_to_index = {w: i for i, w in enumerate(new_lines)}
+        index_to_vocab = {i: w for i, w in enumerate(new_lines)}
+        return new_lines, vocab_to_index
+
+def wordsToIndices(words, v2i):
+    return [v2i[word] for word in words]
+
+def indicesToWords(indices, i2v):
+    return [i2v[index] for index in indices]
 
 def run(params):
     """
     Run the session, based on the parameters previously set.   
     """
 
-    listOfWords = processWordbank('wordbank.txt')
+    listOfWords, v2i, i2v = processWordbank('wordbank.txt')
        
     counter_games = 0
     score_plot = []
@@ -166,25 +174,15 @@ def run(params):
     while counter_games < params['episodes']:
         # Initialize game state
         gameWordbank = random.sample(listOfWords, k=25)
-        game = Game(gameWordbank, 8)
+        gameIndexbank = wordsToIndices(gameWordbank, v2i)
+        game = Game(gameIndexbank, 8)
 
         # if logging, display board
         if params['display']:
-            display(game)
+            display(game, i2v)
 
         curCodemaster = params["codemasterRed"]
         curGuesser = params["guesserRed"]
-
-        # perform first move
-        initialize_game(game, curCodemaster, listOfWords, params["batch_size"])
-        if game.turn == 0:
-            game.turn = 1
-            curCodemaster = params["codemasterBlue"]
-            curGuesser = params["guesserBlue"]
-        else:
-            game.turn = 0
-            curCodemaster = params["codemasterRed"]
-            curGuesser = params["guesserRed"]
         
         steps = 0       # steps since the last positive reward
         while (not game.crash) and (not game.end):
@@ -203,6 +201,7 @@ def run(params):
             # --- CODEMASTER ---
             # This should output 1 single word, w, and 1 integer, k
             # perform random actions based on agent.epsilon, or choose the action
+            # TODO: need to print out board if logging so that human codemaster can see it
             '''
             I used num_words before so I shouldn't be talking but we really need to come up with a more descriptive name
             than 'count'
@@ -308,6 +307,7 @@ def run(params):
             curCodemaster.replay_new(curCodemaster.memory, params['batch_size'])
             curGuesser.replay_new(curGuesser.memory, params['batch_size'])
 
+        # TODO: should be calculating some sort of accuracy
         counter_games += 1
         print(f'Game {counter_games}      Score: {game.score}')
         score_plot.append(game.score)
