@@ -297,7 +297,7 @@ def run(params):
         guesser_model_weights = curGuesser.state_dict()
         torch.save(guesser_model_weights, params["weights_path"])
 
-    return
+    return score_plot, counter_plot
 
 def initialize_player(player, params):
     if player == HumanCodemaster:
@@ -358,4 +358,6 @@ if __name__ == '__main__':
     params["guesserRed"] = initialize_player(guesserRed, params)
     params["guesserBlue"] = initialize_player(guesserBlue, params)
 
-    run(params)
+    score_plot, counter_plot = run(params)
+    print(score_plot)
+    print(counter_plot)
