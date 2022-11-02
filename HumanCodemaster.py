@@ -13,3 +13,10 @@ class HumanCodemaster():
 
     def postprocess(self, game):
         return
+
+    def set_reward(self, num_own_guessed, num_opposing_guessed, num_neutral_guessed, num_danger_guessed, num_previously_guessed, game_ended):
+        return
+
+    def train_short_memory(self, state, action, reward, next_state, done):
+        return
+        

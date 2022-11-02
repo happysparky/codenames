@@ -44,11 +44,12 @@ def define_parameters():
     params['log_path'] = 'logs/scores_' + str(datetime.datetime.now().strftime("%Y%m%d%H%M%S")) +'.txt'
     return params
 
-def print_board(game):
+def print_board(game, i2v):
     print('--- BOARD ---')
 
     longest = 0
-    for word in game.board:
+    for word_index in game.board:
+        word = i2v[word_index]
         if len(word) > longest:
             longest = len(word)
 
@@ -58,16 +59,17 @@ def print_board(game):
         else:
             end = " "
 
-        current_word = game.board[idx-1]
+        current_word_index = game.board[idx-1]
+        current_word = i2v[current_word_index]
         num_spaces = longest-len(current_word)
 
-        if current_word in game.red_words_remaining or current_word in game.red_words_chosen: 
+        if current_word_index in game.red_words_remaining or current_word in game.red_words_chosen: 
             print(bcolors.RED + current_word + bcolors.ENDC, end=end)
-        elif current_word in game.blue_words_remaining or current_word in game.blue_words_chosen:
+        elif current_word_index in game.blue_words_remaining or current_word in game.blue_words_chosen:
             print(bcolors.BLUE + current_word + bcolors.ENDC, end=end)
-        elif current_word in game.neutral_words_remaining or current_word in game.neutral_words_chosen: 
+        elif current_word_index in game.neutral_words_remaining or current_word in game.neutral_words_chosen: 
             print(bcolors.WHITE + current_word + bcolors.ENDC, end=end)
-        elif current_word in game.danger_word: 
+        elif current_word_index == game.danger_word: 
             print(bcolors.BLACK + current_word + bcolors.ENDC, end=end)
 
         if end == " ":
@@ -78,7 +80,7 @@ def print_board(game):
     print()
 
 def display(game, i2v):
-    print_board(game)
+    print_board(game, i2v)
     # print(game.blue_words_remaining + game.red_words_remaining + game.neutral_words_remaining + game.danger_word)
         
     print(bcolors.RED + "FOUND: " + str(indicesToWords(game.red_words_chosen, i2v)) + bcolors.ENDC)
@@ -195,6 +197,7 @@ def run(params):
                 # predict action based on the old state
                 # TODO: should be able to add in a "bounding factor" for telling the model a min and max for the count output
                 with torch.no_grad():
+                    print(codemaster_state_old)
                     codemaster_state_old_tenser = torch.tensor(codemaster_state_old.reshape((1, 11)), dtype=torch.float32).to(DEVICE)
                     prediction = curCodemaster(codemaster_state_old_tenser)
                     # TODO: generate word/number pair based on prediction
