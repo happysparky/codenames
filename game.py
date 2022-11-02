@@ -143,7 +143,7 @@ class Game:
             np.asarray(self.all_guesses)        
         ]
 
-        return np.asarray(state)
+        return np.asarray(state, dtype=object)
 
     '''
     discuss how to represent the state
@@ -171,7 +171,7 @@ class Game:
             np.asarray(remaining)     
         ]
 
-        return np.asarray(state)
+        return np.asarray(state, dtype=object)
 
     def generate_random_guesses(self, count):
         unguessed_words = set(self.board).difference(set(self.all_guesses))

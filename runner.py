@@ -3,9 +3,9 @@ import argparse
 import numpy as np
 import matplotlib.pyplot as plt
 from HumanCodemaster import HumanCodemaster
-from Codemaster import Codemaster
+from AgentCodemaster import AgentCodemaster
 from HumanGuesser import HumanGuesser
-from Guesser import Guesser
+from AgentGuesser import AgentGuesser
 from random import randint
 from Game import Game
 from bcolors import bcolors
@@ -173,10 +173,12 @@ def run(params):
         steps = 0       # steps since the last positive reward
         while (not game.crash) and (not game.end):
             if not params['train']:
+                ''' check into epsilon because it's initialized upon object creation'''
                 curCodemaster.epsilon = 0.01
                 curGuesser.epsilon = 0.01
             else:
                 # agent.epsilon is set to give randomness to actions
+
                 curCodemaster.epsilon = 1 - (counter_games * params['epsilon_decay_linear'])
                 curGuesser.epsilon = 1 - (counter_games * params['epsilon_decay_linear'])
 
@@ -191,8 +193,10 @@ def run(params):
             I used num_words before so I shouldn't be talking but we really need to come up with a more descriptive name
             than 'count'
             '''
-            if random.uniform(0, 1) < curCodemaster.epsilon:
+
+            if type(curCodemaster) != HumanCodemaster and random.uniform(0, 1) < curCodemaster.epsilon:
                 hint, count = game.generate_random_hint()
+
             else:
                 # predict action based on the old state
                 # TODO: should be able to add in a "bounding factor" for telling the model a min and max for the count output
@@ -218,7 +222,7 @@ def run(params):
             else:
                 remaining = len(game.blue_words_remaining)
 
-            if random.uniform(0, 1) < curGuesser.epsilon:
+            if type(curGuesser) != HumanGuesser and random.uniform(0, 1) < curGuesser.epsilon:
                 guesses = game.generate_random_guesses(remaining)
             else:
                 # predict action based on the old state
@@ -307,13 +311,13 @@ def initialize_player(player, params):
         return HumanCodemaster()
     elif player == HumanGuesser:
         return HumanGuesser()
-    elif player == Codemaster:
-        agent = Codemaster(params)
+    elif player == AgentCodemaster:
+        agent = AgentCodemaster(params)
         agent = agent.to(DEVICE)
         agent.optimizer = optim.Adam(agent.parameters(), weight_decay=0, lr=params['learning_rate'])
         return agent
     else:
-        agent = Guesser(params)
+        agent = AgentGuesser(params)
         agent = agent.to(DEVICE)
         agent.optimizer = optim.Adam(agent.parameters(), weight_decay=0, lr=params['learning_rate'])
         return agent 
@@ -335,12 +339,12 @@ if __name__ == '__main__':
     print("Args", args)
 
     # load codemaster classes
-    codemasterRed = HumanCodemaster if args.codemasterRed else Guesser
-    codemasterBlue = HumanCodemaster if args.codemasterBlue else Codemaster
+    codemasterRed = HumanCodemaster if args.codemasterRed else AgentGuesser
+    codemasterBlue = HumanCodemaster if args.codemasterBlue else AgentCodemaster
 
     # load guesser classes
-    guesserRed = HumanGuesser if args.guesserRed else Guesser
-    guesserBlue = HumanGuesser if args.guesserBlue else Guesser
+    guesserRed = HumanGuesser if args.guesserRed else AgentGuesser
+    guesserBlue = HumanGuesser if args.guesserBlue else AgentGuesser
 
     '''
     Not sure what this does so commenting it out for now

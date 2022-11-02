@@ -15,43 +15,31 @@ can probably rename this class to AgentCodemaster or something to follow same pa
 '''
 
 class Codemaster(torch.nn.Module):
-    def __init__(self, params):
+    def __init__(self):
         super().__init__()
         self.reward = 0
-        self.gamma = 0.9
-        self.dataframe = pd.DataFrame()
-        self.short_memory = np.array([])
-        self.agent_target = 1
+        self.gamma = 0
+        self.dataframe = None
+        self.short_memory = None
+        self.agent_target = 0
         self.agent_predict = 0
-        self.learning_rate = params['learning_rate']        
-        self.epsilon = 1
-        self.actual = []
-        self.first_layer = params['first_layer_size']
-        self.second_layer = params['second_layer_size']
-        self.third_layer = params['third_layer_size']
-        self.memory = collections.deque(maxlen=params['memory_size'])
-        self.weights = params['weights_path']
-        self.load_weights = params['load_weights']
+        self.learning_rate = None     
+        self.epsilon = 0
+        self.actual = None
+        self.first_layer = None
+        self.second_layer = None
+        self.third_layer = None
+        self.memory = None
+        self.weights = None
+        self.load_weights = None
         self.optimizer = None
-        self.network()
           
     def network(self):
         # Layers
-        self.f1 = nn.Linear(11, self.first_layer)
-        self.f2 = nn.Linear(self.first_layer, self.second_layer)
-        self.f3 = nn.Linear(self.second_layer, self.third_layer)
-        self.f4 = nn.Linear(self.third_layer, 3)
-        # weights
-        if self.load_weights:
-            self.model = self.load_state_dict(torch.load(self.weights))
-            print("weights loaded")
+        return
 
     def forward(self, x):
-        x = F.relu(self.f1(x))
-        x = F.relu(self.f2(x))
-        x = F.relu(self.f3(x))
-        x = F.softmax(self.f4(x), dim=-1)
-        return x
+       return
 
     def set_reward(self, num_own_guessed, num_opposing_guessed, num_neutral_guessed, num_danger_guessed, num_previously_guessed, game_ended):
         ''' I think the danger word penality needs to increase. Max an agent can get is +80 or +90 
@@ -69,61 +57,27 @@ class Codemaster(torch.nn.Module):
         # TODO: don't give more a clue that applies to more words than there are left
         # TODO: add "don't suggest a number greater than the words remaining"
 
-        self.reward = 10*num_own_guessed - 10*num_opposing_guessed - 5*num_neutral_guessed - 50*num_danger_guessed
-        return self.reward
+        return
 
     def remember(self, state, action, reward, next_state, done):
         """
         Store the <state, action, reward, next_state, is_done> tuple in a 
         memory buffer for replay memory.
         """
-        self.memory.append((state, action, reward, next_state, done))
+        return
 
     def replay_new(self, memory, batch_size):
         """
         Replay memory.
         """
-        if len(memory) > batch_size:
-            minibatch = random.sample(memory, batch_size)
-        else:
-            minibatch = memory
-        for state, action, reward, next_state, done in minibatch:
-            self.train()
-            torch.set_grad_enabled(True)
-            target = reward
-            next_state_tensor = torch.tensor(np.expand_dims(next_state, 0), dtype=torch.float32).to(DEVICE)
-            state_tensor = torch.tensor(np.expand_dims(state, 0), dtype=torch.float32, requires_grad=True).to(DEVICE)
-            if not done:
-                target = reward + self.gamma * torch.max(self.forward(next_state_tensor)[0])
-            output = self.forward(state_tensor)
-            target_f = output.clone()
-            target_f[0][np.argmax(action)] = target
-            target_f.detach()
-            self.optimizer.zero_grad()
-            loss = F.mse_loss(output, target_f)
-            loss.backward()
-            self.optimizer.step()            
+        return
 
     def train_short_memory(self, state, action, reward, next_state, done):
         """
         Train the DQN agent on the <state, action, reward, next_state, is_done>
         tuple at the current timestep.
         """
-        self.train()
-        torch.set_grad_enabled(True)
-        target = reward
-        next_state_tensor = torch.tensor(next_state.reshape((1, 11)), dtype=torch.float32).to(DEVICE)
-        state_tensor = torch.tensor(state.reshape((1, 11)), dtype=torch.float32, requires_grad=True).to(DEVICE)
-        if not done:
-            target = reward + self.gamma * torch.max(self.forward(next_state_tensor[0]))
-        output = self.forward(state_tensor)
-        target_f = output.clone()
-        target_f[0][np.argmax(action)] = target
-        target_f.detach()
-        self.optimizer.zero_grad()
-        loss = F.mse_loss(output, target_f)
-        loss.backward()
-        self.optimizer.step()
+        return
 
     def postprocess(self, game):
-        reward = self.set_reward(game.dnsaglnadsgf)
+        return

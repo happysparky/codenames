@@ -1,5 +1,6 @@
 class HumanGuesser():
     def __init__(self):
+        super().__init__()
         return
 
     def forward(self):
