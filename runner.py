@@ -142,6 +142,30 @@ def wordsToIndices(words, v2i):
 def indicesToWords(indices, i2v):
     return [i2v[index] for index in indices]
 
+
+'''
+probably want to rename this at some point because this can do both multihot encoding and one hot encoding 
+'''
+def token_to_multihot(tokens, vocab_size):
+    res = np.zeros((len(tokens), vocab_size))
+
+    # loop through rows
+    for idx in range(len(tokens)):
+        
+        # loop through columns
+
+        # handle if list (contexts)
+        if isinstance(tokens[idx], np.ndarray):
+            for token in tokens[idx]:
+                res[idx, token] = 1
+
+        # handle if a single word (input)
+        else:
+            res[idx, tokens[idx]] = 1
+
+    # cast numpy array to tensor before returning
+    return torch.from_numpy(res)
+
 def run(params):
     """
     Run the session, based on the parameters previously set.   
@@ -250,15 +274,18 @@ def run(params):
                 guesser_state_new = game.get_guesser_state()
 
                 # set reward for the new state
-                codemaster_reward = curCodemaster.set_reward(num_own_guessed, num_opposing_guessed, num_neutral_guessed, num_danger_guessed, num_previously_guessed, game.end)
                 guesser_reward = curGuesser.set_reward(num_own_guessed, num_opposing_guessed, num_neutral_guessed, num_danger_guessed, num_previously_guessed, game.end)
 
                 # perform model weight updates/loss/etc
                 if params['train']:
+                    vocab_size = len(i2v)
+                    guesser_state_old_multihot = token_to_multihot(guesser_state_old, vocab_size)
+                    guesser_state_new_multihot = token_to_multihot(guesser_state_new, vocab_size)
+
                     # train short memory base on the new action and state
-                    curGuesser.train_short_memory(guesser_state_old, guess, guesser_reward, guesser_state_new, game.crash)
+                    curGuesser.train_short_memory(guesser_state_old_multihot, guess, guesser_reward, guesser_state_new_multihot, game.crash)
                     # store the new data into a long term memory
-                    curGuesser.remember(guesser_state_old, guess, guesser_reward, guesser_state_new, game.crash)
+                    curGuesser.remember(guesser_state_old_multihot, guess, guesser_reward, guesser_state_new_multihot, game.crash)
 
                 # end this turn if failed to guess correctly or game ends
                 if num_own_guessed == 0 or game.end:
@@ -267,11 +294,31 @@ def run(params):
             # guesser reward and weight updates
             guesser_reward = curGuesser.set_reward(accumulated_own_guessed, accumulated_opposing_guessed, accumulated_neutral_guessed, accumulated_danger_guessed, accumulated_previously_guessed, game.end)
             codemaster_reward = curCodemaster.set_reward(accumulated_own_guessed, accumulated_opposing_guessed, accumulated_neutral_guessed, accumulated_danger_guessed, accumulated_previously_guessed, game.end)
+            
             if params['train']:
-                curCodemaster.train_short_memory(codemaster_state_old, hint, count, codemaster_reward, codemaster_state_new, game.crash)
-                curCodemaster.remember(codemaster_state_old, hint, count, codemaster_reward, codemaster_state_new, game.crash)
-                curGuesser.train_short_memory(guesser_state_old, guess, guesser_reward, guesser_state_new, game.crash)
-                curGuesser.remember(guesser_state_old, guess, guesser_reward, guesser_state_new, game.crash)
+                vocab_size = len(i2v)
+
+                codemaster_state_old_multihot = token_to_multihot(codemaster_state_old, vocab_size)
+                codemaster_state_new_multihot = token_to_multihot(codemaster_state_new, vocab_size)
+                ''' Check in with adam if creating the representation of action makes sense...not sure 
+                if we can just combine the hint and count representations into one action or if it needs
+                to be split up into two'''
+                hint_multihot = token_to_multihot([hint], vocab_size)
+                # sometimes we get "IndexError: index 9 is out of bounds for axis 1 with size 9"
+                # if we set 9 if red and 8 if blue because theoretically, the codemaster can give a hint that represents 
+                # all 9 of its words, in which case there is no index '9'. To fix this, we could subtract the count by 1,
+                # so a count of 0 represents a hint that represents 1 word, a count of 1 represents a hint that represents 2 words, etc.
+                count_multihot = token_to_multihot([count-1], 9 if game.turn == 0 else 8)
+                codemaster_action_multihot = np.concatenate([hint_multihot,count_multihot], axis=1).squeeze()
+                
+                guesser_state_old_multihot = token_to_multihot(guesser_state_old, vocab_size)
+                guesser_state_new_multihot = token_to_multihot(guesser_state_new, vocab_size)
+                
+                curCodemaster.train_short_memory(codemaster_state_old_multihot, codemaster_action_multihot, codemaster_reward, codemaster_state_new_multihot, game.crash)
+                curCodemaster.remember(codemaster_state_old_multihot, hint_multihot, count, codemaster_reward, codemaster_state_new_multihot, game.crash)
+                
+                curGuesser.train_short_memory(guesser_state_old_multihot, guess, guesser_reward, guesser_state_new_multihot, game.crash)
+                curGuesser.remember(guesser_state_old_multihot, guess, guesser_reward, guesser_state_new_multihot, game.crash)
             
             # if the game hasn't ended, change turns
             if game.end == False:
@@ -316,7 +363,7 @@ def initialize_player(player, params):
         agent = agent.to(DEVICE)
         agent.optimizer = optim.Adam(agent.parameters(), weight_decay=0, lr=params['learning_rate'])
         return agent
-    else:
+    elif player == AgentGuesser:
         agent = AgentGuesser(params)
         agent = agent.to(DEVICE)
         agent.optimizer = optim.Adam(agent.parameters(), weight_decay=0, lr=params['learning_rate'])
@@ -339,7 +386,7 @@ if __name__ == '__main__':
     print("Args", args)
 
     # load codemaster classes
-    codemasterRed = HumanCodemaster if args.codemasterRed else AgentGuesser
+    codemasterRed = HumanCodemaster if args.codemasterRed else AgentCodemaster
     codemasterBlue = HumanCodemaster if args.codemasterBlue else AgentCodemaster
 
     # load guesser classes

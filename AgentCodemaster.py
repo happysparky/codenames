@@ -39,7 +39,7 @@ class AgentCodemaster(Codemaster):
           
     def network(self):
         # Layers
-        self.f1 = nn.Linear(11, self.first_layer)
+        self.f1 = nn.Linear(6730, self.first_layer)
         self.f2 = nn.Linear(self.first_layer, self.second_layer)
         self.f3 = nn.Linear(self.second_layer, self.third_layer)
         self.f4 = nn.Linear(self.third_layer, 3)
@@ -106,6 +106,7 @@ class AgentCodemaster(Codemaster):
             loss.backward()
             self.optimizer.step()            
 
+
     def train_short_memory(self, state, action, reward, next_state, done):
         """
         Train the DQN agent on the <state, action, reward, next_state, is_done>
@@ -114,12 +115,27 @@ class AgentCodemaster(Codemaster):
         self.train()
         torch.set_grad_enabled(True)
         target = reward
-        next_state_tensor = torch.tensor(next_state.reshape((1, 11)), dtype=torch.float32).to(DEVICE)
-        state_tensor = torch.tensor(state.reshape((1, 11)), dtype=torch.float32, requires_grad=True).to(DEVICE)
+
+        print(state)
+
+        # a state contains 10 things to consider
+        # each of the 7 things has 673 (vocab size) spots
+        # 10 x 673 = 6730
+        next_state_tensor = torch.tensor(next_state.reshape((1, 6730)), dtype=torch.float32).to(DEVICE)
+        state_tensor = torch.tensor(state.reshape((1, 6730)), dtype=torch.float32, requires_grad=True).to(DEVICE)
         if not done:
             target = reward + self.gamma * torch.max(self.forward(next_state_tensor[0]))
         output = self.forward(state_tensor)
         target_f = output.clone()
+        print("target")
+        print(target)
+        print("\n")
+        print("argmax")
+        print(np.argmax(action))
+        print("\n")
+        print("target_f")
+        print(target_f[0])
+        print("\n")
         target_f[0][np.argmax(action)] = target
         target_f.detach()
         self.optimizer.zero_grad()

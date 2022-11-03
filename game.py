@@ -131,16 +131,16 @@ class Game:
             - remaining words
         """
         state = [
-            np.asarray(self.red_hints),
-            np.asarray(self.red_words_chosen),
-            np.asarray(self.red_words_remaining),
-            np.asarray(self.blue_hints),
-            np.asarray(self.blue_words_chosen),
-            np.asarray(self.blue_words_remaining),
-            np.asarray(self.neutral_words_chosen),
-            np.asarray(self.neutral_words_remaining),
-            np.asarray(self.danger_word),    
-            np.asarray(self.all_guesses)        
+            np.atleast_1d(self.red_hints),
+            np.atleast_1d(self.red_words_chosen),
+            np.atleast_1d(self.red_words_remaining),
+            np.atleast_1d(self.blue_hints),
+            np.atleast_1d(self.blue_words_chosen),
+            np.atleast_1d(self.blue_words_remaining),
+            np.atleast_1d(self.neutral_words_chosen),
+            np.atleast_1d(self.neutral_words_remaining),
+            np.atleast_1d(self.danger_word),    
+            np.atleast_1d(self.all_guesses)   
         ]
 
         return np.asarray(state, dtype=object)
@@ -162,13 +162,13 @@ class Game:
         """
         remaining = sorted(self.blue_words_remaining + self.red_words_remaining + self.neutral_words_remaining + [self.danger_word])
         state = [
-            np.asarray(self.red_hints),
-            np.asarray(self.red_words_chosen),
-            np.asarray(self.blue_hints),
-            np.asarray(self.blue_words_chosen),
-            np.asarray(self.neutral_words_chosen),   
-            np.asarray(self.all_guesses),
-            np.asarray(remaining)     
+            np.atleast_1d(self.red_hints),
+            np.atleast_1d(self.red_words_chosen),
+            np.atleast_1d(self.blue_hints),
+            np.atleast_1d(self.blue_words_chosen),
+            np.atleast_1d(self.neutral_words_chosen),   
+            np.atleast_1d(self.all_guesses),
+            np.atleast_1d(remaining)     
         ]
 
         return np.asarray(state, dtype=object)

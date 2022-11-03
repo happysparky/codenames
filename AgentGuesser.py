@@ -39,7 +39,7 @@ class AgentGuesser(Guesser):
           
     def network(self):
         # Layers
-        self.f1 = nn.Linear(11, self.first_layer)
+        self.f1 = nn.Linear(4711, self.first_layer)
         self.f2 = nn.Linear(self.first_layer, self.second_layer)
         self.f3 = nn.Linear(self.second_layer, self.third_layer)
         self.f4 = nn.Linear(self.third_layer, 3)
@@ -113,6 +113,7 @@ class AgentGuesser(Guesser):
             self.train()
             torch.set_grad_enabled(True)
             target = reward
+            # changed float to double
             next_state_tensor = torch.tensor(np.expand_dims(next_state, 0), dtype=torch.float32).to(DEVICE)
             state_tensor = torch.tensor(np.expand_dims(state, 0), dtype=torch.float32, requires_grad=True).to(DEVICE)
             if not done:
@@ -134,8 +135,17 @@ class AgentGuesser(Guesser):
         self.train()
         torch.set_grad_enabled(True)
         target = reward
-        next_state_tensor = torch.tensor(next_state.reshape((1, 11)), dtype=torch.float32).to(DEVICE)
-        state_tensor = torch.tensor(state.reshape((1, 11)), dtype=torch.float32, requires_grad=True).to(DEVICE)
+
+        # a state contains 7 things to consider
+        # each of the 7 things has 673 (vocab size) spots
+        # 7 x 673 = 4711
+
+        # get a warning for copy construct tensor using skeleton code so consider using the commented out versions below (but have to fix type bug with double vs float)
+        # next_state_tensor = next_state.clone().detach().reshape((1, 4711)).to(DEVICE)
+        # state_tensor = state.clone().detach().reshape((1, 4711)).requires_grad_(True).to(DEVICE)
+        next_state_tensor = torch.tensor(next_state.reshape((1, 4711)), dtype=torch.float32).to(DEVICE)
+        state_tensor = torch.tensor(state.reshape((1, 4711)), dtype=torch.float32, requires_grad=True).to(DEVICE)
+
         if not done:
             target = reward + self.gamma * torch.max(self.forward(next_state_tensor[0]))
         output = self.forward(state_tensor)
