@@ -63,13 +63,13 @@ def print_board(game, i2v):
         current_word = i2v[current_word_index]
         num_spaces = longest-len(current_word)
 
-        if current_word_index in game.red_words_remaining or current_word in game.red_words_chosen: 
+        if game.red_words_remaining[current_word_index] == 1 or game.red_words_chosen[current_word] == 1: 
             print(bcolors.RED + current_word + bcolors.ENDC, end=end)
-        elif current_word_index in game.blue_words_remaining or current_word in game.blue_words_chosen:
+        elif game.blue_words_remaining[current_word_index] == 1 or game.blue_words_chosen[current_word] == 1:
             print(bcolors.BLUE + current_word + bcolors.ENDC, end=end)
-        elif current_word_index in game.neutral_words_remaining or current_word in game.neutral_words_chosen: 
+        elif game.neutral_words_remaining[current_word_index] == 1 or game.neutral_words_chosen[ current_word] == 1: 
             print(bcolors.WHITE + current_word + bcolors.ENDC, end=end)
-        elif current_word_index == game.danger_word: 
+        elif game.danger_words_remaining[current_word_index]: 
             print(bcolors.BLACK + current_word + bcolors.ENDC, end=end)
 
         if end == " ":
@@ -94,7 +94,7 @@ def display(game, i2v):
     print(bcolors.WHITE + "FOUND: " + str(indicesToWords(game.neutral_words_chosen, i2v)) + bcolors.ENDC)
     print(bcolors.WHITE + "LEFT: " + str(indicesToWords(game.neutral_words_remaining, i2v)) + bcolors.ENDC)
 
-    print(bcolors.BLACK + "DANGER: " + str(indicesToWords([game.danger_word], i2v)) + bcolors.ENDC)
+    print(bcolors.BLACK + "DANGER: " + str(indicesToWords([game.danger_words_remaining], i2v)) + bcolors.ENDC)
 
 
     if game.turn == 0:
@@ -105,7 +105,7 @@ def display(game, i2v):
 # gets the hint and number of words the hint applies to. Ensures the hint and number of words the hint applies to is valid
 def get_humancodemaster_hint(human_codemaster, game):
     gameWordBank = game.board
-    words_remaining = len(game.red_words_remaining) if game.turn == 0 else len(game.blue_words_remaining)
+    words_remaining = game.red_words_remaining_count if game.turn == 0 else game.blue_words_remaining_count
 
     hint, num_words = human_codemaster.forward()
 
@@ -142,7 +142,7 @@ def wordsToIndices(words, v2i):
     return [v2i[word] for word in words]
 
 def indicesToWords(indices, i2v):
-    return [i2v[index] for index in indices]
+    return [i2v[index] for index in indices if indices[index] == 1]
 
 
 '''
@@ -184,7 +184,7 @@ def run(params):
         # Initialize game state
         gameWordbank = random.sample(listOfWords, k=25)
         gameIndexbank = wordsToIndices(gameWordbank, v2i)
-        game = Game(gameIndexbank, 8)
+        game = Game(gameIndexbank, 8, len(v2i))
 
         # if logging, display board
         if params['display']:
@@ -228,7 +228,7 @@ def run(params):
                     # TODO: should be able to add in a "bounding factor" for telling the model a min and max for the count output
                     with torch.no_grad():
                         print(codemaster_state_old)
-                        codemaster_state_old_tenser = token_to_multihot(codemaster_state_old, len(i2v)).to(DEVICE)
+                        codemaster_state_old_tenser = torch.from_numpy(codemaster_state_old).to(DEVICE)
                         prediction = curCodemaster(codemaster_state_old_tenser)
                         # TODO: generate word/number pair based on prediction
                         hint, count = np.eye(3)[np.argmax(prediction.detach().cpu().numpy()[0])]
@@ -250,20 +250,20 @@ def run(params):
             guess = ""
             # get maximum number of guesses possible amount of guesses back based on the hint
             if game.turn == 0:
-                remaining = len(game.red_words_remaining)
+                remaining_count = game.red_words_remaining_count
             else:
-                remaining = len(game.blue_words_remaining)
+                remaining_count = game.blue_words_remaining_count
 
             if type(curGuesser) != HumanGuesser:
                 if random.uniform(0, 1) < curGuesser.epsilon:
-                    guesses = game.generate_random_guesses(remaining)
+                    guesses = game.generate_random_guesses(remaining_count)
                 else:
                     # predict action based on the old state
                     with torch.no_grad():
                         guesser_state_old_tensor = torch.tensor(guesser_state_old.reshape((1, 11)), dtype=torch.float32).to(DEVICE)
                         # TODO: generate guesses based on hint
                         # generate remaining number of guesses
-                        guesses = curGuesser(guesser_state_old_tensor, hint, remaining)
+                        guesses = curGuesser(guesser_state_old_tensor, hint, remaining_count)
             else:
                 guesses = curGuesser()
 
@@ -294,8 +294,8 @@ def run(params):
                 # perform model weight updates/loss/etc
                 if params['train']:
                     vocab_size = len(i2v)
-                    guesser_state_old_multihot = token_to_multihot(guesser_state_old, vocab_size)
-                    guesser_state_new_multihot = token_to_multihot(guesser_state_new, vocab_size)
+                    guesser_state_old_multihot = torch.from_numpy(guesser_state_old)
+                    guesser_state_new_multihot = torch.from_numpy(guesser_state_new)
 
                     # train short memory base on the new action and state
                     curGuesser.train_short_memory(guesser_state_old_multihot, guess, guesser_reward, guesser_state_new_multihot, game.crash)
@@ -313,12 +313,14 @@ def run(params):
             if params['train']:
                 vocab_size = len(i2v)
 
-                codemaster_state_old_multihot = token_to_multihot(codemaster_state_old, vocab_size)
-                codemaster_state_new_multihot = token_to_multihot(codemaster_state_new, vocab_size)
+                codemaster_state_old_multihot = torch.from_numpy(codemaster_state_old)
+                codemaster_state_new_multihot = torch.from_numpy(codemaster_state_new)
                 ''' Check in with adam if creating the representation of action makes sense...not sure 
                 if we can just combine the hint and count representations into one action or if it needs
                 to be split up into two'''
-                hint_multihot = token_to_multihot([hint], vocab_size)
+                hint_multihot = np.zeros(vocab_size)
+                hint_multihot[hint] = 1
+                hint_multihot = torch.from_numpy(hint_multihot)
                 # sometimes we get "IndexError: index 9 is out of bounds for axis 1 with size 9"
                 # if we set 9 if red and 8 if blue because theoretically, the codemaster can give a hint that represents 
                 # all 9 of its words, in which case there is no index '9'. To fix this, we could subtract the count by 1,
@@ -326,8 +328,8 @@ def run(params):
                 count_multihot = token_to_multihot([count-1], 9 if game.turn == 0 else 8)
                 codemaster_action_multihot = np.concatenate([hint_multihot,count_multihot], axis=1).squeeze()
                 
-                guesser_state_old_multihot = token_to_multihot(guesser_state_old, vocab_size)
-                guesser_state_new_multihot = token_to_multihot(guesser_state_new, vocab_size)
+                guesser_state_old_multihot = torch.from_numpy(guesser_state_old)
+                guesser_state_new_multihot = torch.from_numpy(guesser_state_new)
                 
                 curCodemaster.train_short_memory(codemaster_state_old_multihot, codemaster_action_multihot, codemaster_reward, codemaster_state_new_multihot, game.crash)
                 curCodemaster.remember(codemaster_state_old_multihot, hint_multihot, count, codemaster_reward, codemaster_state_new_multihot, game.crash)

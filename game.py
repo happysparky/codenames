@@ -23,22 +23,35 @@ class Game:
     The number of words guessed is also fixed to 9 and 8 - hardcode per_team_count? 
     '''
 
-    def __init__(self, wordList, per_team_count):
+    def __init__(self, wordList, per_team_count, vocab_size):
+
+        self.vocab_size = vocab_size
+
         # sample |size| words
-        self.red_words_remaining = wordList[:per_team_count+1] # choose per_team_count
-        self.red_words_chosen = []
-        self.red_hints = []
+        self.red_words_remaining = np.zeros(vocab_size)
+        for i in range(0,per_team_count+1):
+            self.red_words_remaining[wordList[i]] = 1
 
-        self.blue_words_remaining = wordList[per_team_count+1:2*per_team_count+1] # choose per_team_count
-        self.blue_words_chosen = []
-        self.blue_hints = []
+        self.blue_words_remaining = np.zeros(vocab_size)
+        for i in range(per_team_count+1,2*per_team_count+1):
+            self.blue_words_remaining[wordList[i]] = 1
 
+        self.neutral_words_remaining = np.zeros(vocab_size)
+        for i in range(2*per_team_count+1,len(wordList)-1):
+            self.neutral_words_remaining[wordList[i]] = 1
+        self.danger_words_remaining = np.zeros(vocab_size)
+        self.danger_words_remaining[wordList[len(wordList)-1]] = 1
 
-        self.neutral_words_remaining = wordList[2*per_team_count+1:len(wordList)-1]
-        self.neutral_words_chosen = []
-        self.danger_word = wordList[len(wordList)-1]
+        self.all_guesses = np.zeros(vocab_size)
+        self.neutral_words_chosen = np.zeros(vocab_size)
+        self.blue_words_chosen = np.zeros(vocab_size)
+        self.blue_hints = np.zeros(vocab_size)
+        self.red_words_chosen = np.zeros(vocab_size)
+        self.red_hints = np.zeros(vocab_size)
 
-        self.all_guesses = []
+        self.red_words_remaining_count = per_team_count+1
+        self.blue_words_remaining_count = per_team_count
+        self.danger_words_remaining_count = 1
 
         # shuffle wordlist to create board 
         random.shuffle(wordList) 
@@ -57,15 +70,16 @@ class Game:
     No direct comparison to the papers we were looking at before either since those didn't incorporate RL
     (but they still must have had some kind of measurement for their reward function? -- look into this)
     '''
+    # Returns the max number of words that a hint might correspond to (based on which team's turn it is)
     def process_hint(self, hint, count):
         if self.turn == 0:
-            self.red_hints.append(hint)
-            if count > len(self.red_words_remaining):
-                count = self.red_words_remaining
+            self.red_hints[hint] = 1
+            if count > self.red_words_remaining_count:
+                count = self.red_words_remaining_count
         else:
-            self.blue_hints.append(hint) 
-            if count > len(self.blue_words_remaining):
-                count = self.blue_words_remaining
+            self.blue_hints[hint] = 1
+            if count > self.blue_words_remaining_count:
+                count = self.blue_words_remaining_count
         return count
 
     # makes guesses and returns metrics of how good the guess is 
@@ -76,23 +90,25 @@ class Game:
         num_neutral_guessed = 0
         num_danger_guessed = 0
 
-        if guess in self.all_guesses:
+        if self.all_guesses[guess] == 1:
             num_previously_guessed += 1
         else:
-            self.all_guesses.append(guess)
+            self.all_guesses[guess] = 1
 
-            if guess in self.red_words_remaining:
-                self.red_words_remaining.remove(guess)
-                self.red_words_chosen.append(guess)
+            if self.red_words_remaining[guess] == 1:
+                self.red_words_remaining[guess] = 0
+                self.red_words_remaining_count -= 1
+                self.red_words_chosen[guess] = 1
 
                 if self.turn == 0:
                     num_own_guessed += 1
                 else:
                     num_opposing_guessed += 1
 
-            elif guess in self.blue_words_remaining:
-                self.blue_words_remaining.remove(guess)
-                self.blue_words_chosen.append(guess)
+            elif self.blue_words_remaining[guess] == 1:
+                self.blue_words_remaining[guess] = 0
+                self.blue_words_remaining_count -= 1
+                self.blue_words_chosen[guess] = 1
 
                 if self.turn == 1:
                     num_own_guessed += 1
@@ -100,16 +116,18 @@ class Game:
                     num_opposing_guessed += 1
 
             elif guess in self.neutral_words_remaining:
-                self.neutral_words_remaining.remove(guess)
-                self.neutral_words_chosen.append(guess)
+                self.neutral_words_remaining[guess] = 0
+                self.neutral_words_chosen[guess] = 1
 
                 num_neutral_guessed += 1
 
-            elif guess == self.danger_word:
+            elif self.danger_words_remaining[guess] == 1:
                 self.end = True
+                self.danger_words_remaining[guess] = 0
+                self.danger_words_remaining_count -= 1
                 num_danger_guessed += 1
 
-            if len(self.blue_words_remaining) == 0 or len(self.red_words_remaining) == 0:
+            if self.blue_words_remaining_count == 0 or self.red_words_remaining_count == 0 or self.danger_words_remaining_count == 0:
                 self.end = True
 
         return num_own_guessed, num_opposing_guessed, num_neutral_guessed, num_danger_guessed, num_previously_guessed
@@ -120,7 +138,6 @@ class Game:
         - stratifying based on turn means no adversial aspect, I think
     '''
     def get_codemaster_state(self):
-        # TODO: change all state storages as multi-hot (instead of converting later)
         """
         Return the state.
         The state is a numpy array of 5 numpy arrays, representing:
@@ -131,16 +148,16 @@ class Game:
             - remaining words
         """
         state = [
-            np.atleast_1d(self.red_hints),
-            np.atleast_1d(self.red_words_chosen),
-            np.atleast_1d(self.red_words_remaining),
-            np.atleast_1d(self.blue_hints),
-            np.atleast_1d(self.blue_words_chosen),
-            np.atleast_1d(self.blue_words_remaining),
-            np.atleast_1d(self.neutral_words_chosen),
-            np.atleast_1d(self.neutral_words_remaining),
-            np.atleast_1d(self.danger_word),    
-            np.atleast_1d(self.all_guesses)   
+            self.red_hints,
+            self.red_words_chosen,
+            self.red_words_remaining,
+            self.blue_hints,
+            self.blue_words_chosen,
+            self.blue_words_remaining,
+            self.neutral_words_chosen,
+            self.neutral_words_remaining,
+            self.danger_words_remaining,
+            self.all_guesses
         ]
 
         return np.asarray(state)
@@ -160,33 +177,45 @@ class Game:
             - blue team's found words
             - remaining words
         """
-        remaining = sorted(self.blue_words_remaining + self.red_words_remaining + self.neutral_words_remaining + [self.danger_word])
+        remaining = np.zeros(self.vocab_size)
+        remaining = self.red_words_remaining + self.blue_words_remaining + self.neutral_words_remaining + self.danger_words_remaining
         state = [
-            np.atleast_1d(self.red_hints),
-            np.atleast_1d(self.red_words_chosen),
-            np.atleast_1d(self.blue_hints),
-            np.atleast_1d(self.blue_words_chosen),
-            np.atleast_1d(self.neutral_words_chosen),   
-            np.atleast_1d(self.all_guesses),
-            np.atleast_1d(remaining)     
+            self.red_hints,
+            self.red_words_chosen,
+            self.blue_hints,
+            self.blue_words_chosen,
+            self.neutral_words_chosen,   
+            self.all_guesses,
+            remaining     
         ]
 
         return np.asarray(state, dtype=object)
 
+    # Create array of random guesses
+    # Performs iterative guessing from all words on the board, checking to make sure that the word hasn't been guessed
+    # Also makes sure that not all words have been guessed
     def generate_random_guesses(self, count):
-        unguessed_words = set(self.board).difference(set(self.all_guesses))
+
+        generated_guesses = []
+        guessed = 0
+        while len(generated_guesses) < count and guessed < len(self.board):
+            guess = random.randint(0,len(self.board) )
+            if self.all_guesses[guess] == 0 and guess not in generated_guesses:
+                generated_guesses.append(guess)
+            guessed += 1
 
         # return the maximum number of guesses possible for this team
-        return random.sample(unguessed_words, count)
+        return generated_guesses
         
+    # Generates a random hint based on the vocabulary
     def generate_random_hint(self):
 
-        hint = random.choice(self.board)
+        hint = random.randint(0, self.vocab_size)
         # ensure hint isn't in list of words
-        while hint in self.all_guesses:
-            hint = random.choice(self.board)
+        while hint in self.board:
+            hint = random.randint(0, self.vocab_size)
 
-        words_remaining = len(self.red_words_remaining) if self.turn == 0 else len(self.blue_words_remaining)
+        words_remaining = self.red_words_remaining_count if self.turn == 0 else self.blue_words_remaining_count
         num_words = random.choice(range(1, words_remaining+1))
 
         return hint, num_words
