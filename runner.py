@@ -315,23 +315,15 @@ def run(params):
 
                 codemaster_state_old_multihot = torch.from_numpy(codemaster_state_old)
                 codemaster_state_new_multihot = torch.from_numpy(codemaster_state_new)
-                ''' Check in with adam if creating the representation of action makes sense...not sure 
-                if we can just combine the hint and count representations into one action or if it needs
-                to be split up into two'''
+
                 hint_multihot = np.zeros(vocab_size)
-                hint_multihot[hint] = 1
+                hint_multihot[hint] = count
                 hint_multihot = torch.from_numpy(hint_multihot)
-                # sometimes we get "IndexError: index 9 is out of bounds for axis 1 with size 9"
-                # if we set 9 if red and 8 if blue because theoretically, the codemaster can give a hint that represents 
-                # all 9 of its words, in which case there is no index '9'. To fix this, we could subtract the count by 1,
-                # so a count of 0 represents a hint that represents 1 word, a count of 1 represents a hint that represents 2 words, etc.
-                count_multihot = token_to_multihot([count-1], 9 if game.turn == 0 else 8)
-                codemaster_action_multihot = np.concatenate([hint_multihot,count_multihot], axis=1).squeeze()
                 
                 guesser_state_old_multihot = torch.from_numpy(guesser_state_old)
                 guesser_state_new_multihot = torch.from_numpy(guesser_state_new)
                 
-                curCodemaster.train_short_memory(codemaster_state_old_multihot, codemaster_action_multihot, codemaster_reward, codemaster_state_new_multihot, game.crash)
+                curCodemaster.train_short_memory(codemaster_state_old_multihot, hint_multihot, codemaster_reward, codemaster_state_new_multihot, game.crash)
                 curCodemaster.remember(codemaster_state_old_multihot, hint_multihot, count, codemaster_reward, codemaster_state_new_multihot, game.crash)
                 
                 curGuesser.train_short_memory(guesser_state_old_multihot, guess, guesser_reward, guesser_state_new_multihot, game.crash)
