@@ -1,4 +1,3 @@
-from tkinter.tix import INTEGER
 import numpy as np
 import matplotlib.pyplot as plt
 from HumanCodemaster import HumanCodemaster
@@ -121,6 +120,7 @@ class Game:
         - stratifying based on turn means no adversial aspect, I think
     '''
     def get_codemaster_state(self):
+        # TODO: change all state storages as multi-hot (instead of converting later)
         """
         Return the state.
         The state is a numpy array of 5 numpy arrays, representing:
@@ -143,7 +143,7 @@ class Game:
             np.atleast_1d(self.all_guesses)   
         ]
 
-        return np.asarray(state, dtype=object)
+        return np.asarray(state)
 
     '''
     discuss how to represent the state

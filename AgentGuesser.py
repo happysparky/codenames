@@ -54,26 +54,6 @@ class AgentGuesser(Guesser):
         x = F.relu(self.f3(x))
         x = F.softmax(self.f4(x), dim=-1)
         return x
-    
-    def get_state(self, game, player, food):
-        """
-        Return the state.
-        The state is a numpy array of 5 numpy arrays, representing:
-            - own team's hints
-            - own team's found words
-            - opposing team's guesses
-            - opposing team's found words
-            - remaining words
-        """
-        state = [
-            np.asarray(game.red_hints),
-            np.asarray(game.red_words_chosen),
-            np.asarray(game.blue_hints),
-            np.asarray(game.blue_words_chosen),
-            np.asarray(game.red_words_remaining + game.blue_words_remaining + game.neutral_words_chosen + game.danger_word),
-        ]
-
-        return np.asarray(state)
 
     def set_reward(self, num_own_guessed, num_opposing_guessed, num_neutral_guessed, num_danger_guessed, num_prev_guessed, game_ended):
         """

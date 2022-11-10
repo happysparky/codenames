@@ -1,4 +1,5 @@
-class HumanGuesser():
+from Guesser import Guesser
+class HumanGuesser(Guesser):
     def __init__(self):
         super().__init__()
         return

@@ -133,7 +133,9 @@ def processWordbank(filename):
     with open(filename, "r", encoding="utf-8") as f:
         new_lines = [s.strip() for s in f.readlines()]
         vocab_to_index = {w: i for i, w in enumerate(new_lines)}
+        vocab_to_index["<UNK>"] = len(vocab_to_index)
         index_to_vocab = {i: w for i, w in enumerate(new_lines)}
+        index_to_vocab[len(index_to_vocab)] = "<UNK>"
         return new_lines, vocab_to_index, index_to_vocab
 
 def wordsToIndices(words, v2i):
@@ -218,18 +220,24 @@ def run(params):
             than 'count'
             '''
 
-            if type(curCodemaster) != HumanCodemaster and random.uniform(0, 1) < curCodemaster.epsilon:
-                hint, count = game.generate_random_hint()
-
-            else:
+            if type(curCodemaster) != HumanCodemaster:
+                if random.uniform(0, 1) < curCodemaster.epsilon:
+                    hint, count = game.generate_random_hint()
+                else:
                 # predict action based on the old state
-                # TODO: should be able to add in a "bounding factor" for telling the model a min and max for the count output
-                with torch.no_grad():
-                    print(codemaster_state_old)
-                    codemaster_state_old_tenser = torch.tensor(codemaster_state_old.reshape((1, 11)), dtype=torch.float32).to(DEVICE)
-                    prediction = curCodemaster(codemaster_state_old_tenser)
-                    # TODO: generate word/number pair based on prediction
-                    hint, count = np.eye(3)[np.argmax(prediction.detach().cpu().numpy()[0])]
+                    # TODO: should be able to add in a "bounding factor" for telling the model a min and max for the count output
+                    with torch.no_grad():
+                        print(codemaster_state_old)
+                        codemaster_state_old_tenser = token_to_multihot(codemaster_state_old, len(i2v)).to(DEVICE)
+                        prediction = curCodemaster(codemaster_state_old_tenser)
+                        # TODO: generate word/number pair based on prediction
+                        hint, count = np.eye(3)[np.argmax(prediction.detach().cpu().numpy()[0])]
+            else:
+                hint, count = curCodemaster()
+                if hint in v2i:
+                    hint = v2i[hint]
+                else:
+                    hint = v2i["<UNK>"]
 
             # perform new move and get new state
             count = game.process_hint(hint, count)
@@ -246,15 +254,18 @@ def run(params):
             else:
                 remaining = len(game.blue_words_remaining)
 
-            if type(curGuesser) != HumanGuesser and random.uniform(0, 1) < curGuesser.epsilon:
-                guesses = game.generate_random_guesses(remaining)
+            if type(curGuesser) != HumanGuesser:
+                if random.uniform(0, 1) < curGuesser.epsilon:
+                    guesses = game.generate_random_guesses(remaining)
+                else:
+                    # predict action based on the old state
+                    with torch.no_grad():
+                        guesser_state_old_tensor = torch.tensor(guesser_state_old.reshape((1, 11)), dtype=torch.float32).to(DEVICE)
+                        # TODO: generate guesses based on hint
+                        # generate remaining number of guesses
+                        guesses = curGuesser(guesser_state_old_tensor, hint, remaining)
             else:
-                # predict action based on the old state
-                with torch.no_grad():
-                    guesser_state_old_tensor = torch.tensor(guesser_state_old.reshape((1, 11)), dtype=torch.float32).to(DEVICE)
-                    # TODO: generate guesses based on hint
-                    # generate remaining number of guesses
-                    guesses = curGuesser(guesser_state_old_tensor, hint, remaining)
+                guesses = curGuesser()
 
             # try each guess 
             accumulated_own_guessed = 0
@@ -263,6 +274,10 @@ def run(params):
             accumulated_danger_guessed = 0
             accumulated_previously_guessed = 0
             for guess in guesses:
+                if guess in v2i:
+                    guess = v2i[guess]
+                else:
+                    guess = v2i["<UNK>"]
                 # update the game state
                 num_own_guessed, num_opposing_guessed, num_neutral_guessed, num_danger_guessed, num_previously_guessed = game.process_single_guess(guess)
                 accumulated_own_guessed += num_own_guessed
