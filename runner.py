@@ -133,7 +133,7 @@ def processWordbank(filename):
     with open(filename, "r", encoding="utf-8") as f:
         new_lines = [s.strip().lower() for s in f.readlines()]
         vocab_to_index = {w: i for i, w in enumerate(new_lines)}
-        vocab_to_index["<UNK>"] = len(vocab_to_index)+1
+        vocab_to_index["<UNK>"] = len(vocab_to_index)
         index_to_vocab = {i: w for i, w in enumerate(new_lines)}
         index_to_vocab[len(index_to_vocab)] = "<UNK>"
         return new_lines, vocab_to_index, index_to_vocab
@@ -239,8 +239,6 @@ def run(params):
                 else:
                     hint = v2i["<UNK>"]
 
-            print("V2I:", v2i)
-            print("HINT:", hint)
             # perform new move and get new state
             count = game.process_hint(hint, count)
             # get old state

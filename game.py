@@ -58,6 +58,8 @@ class Game:
         self.board = wordList
         # 0 represents blue's turn, 1 is red's turn
         self.turn = 0
+        # Score represents how many turns it takes to complete a game
+        self.score = 0
         self.end = False
 
         ''' Set this to true somewhere'''
@@ -80,6 +82,8 @@ class Game:
             self.blue_hints[hint] = 1
             if count > self.blue_words_remaining_count:
                 count = self.blue_words_remaining_count
+
+        self.score += 1
         return count
 
     # makes guesses and returns metrics of how good the guess is 
