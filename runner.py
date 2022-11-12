@@ -63,11 +63,11 @@ def print_board(game, i2v):
         current_word = i2v[current_word_index]
         num_spaces = longest-len(current_word)
 
-        if game.red_words_remaining[current_word_index] == 1 or game.red_words_chosen[current_word] == 1: 
+        if game.red_words_remaining[current_word_index] == 1 or game.red_words_chosen[current_word_index] == 1: 
             print(bcolors.RED + current_word + bcolors.ENDC, end=end)
-        elif game.blue_words_remaining[current_word_index] == 1 or game.blue_words_chosen[current_word] == 1:
+        elif game.blue_words_remaining[current_word_index] == 1 or game.blue_words_chosen[current_word_index] == 1:
             print(bcolors.BLUE + current_word + bcolors.ENDC, end=end)
-        elif game.neutral_words_remaining[current_word_index] == 1 or game.neutral_words_chosen[ current_word] == 1: 
+        elif game.neutral_words_remaining[current_word_index] == 1 or game.neutral_words_chosen[ current_word_index] == 1: 
             print(bcolors.WHITE + current_word + bcolors.ENDC, end=end)
         elif game.danger_words_remaining[current_word_index]: 
             print(bcolors.BLACK + current_word + bcolors.ENDC, end=end)
@@ -94,7 +94,7 @@ def display(game, i2v):
     print(bcolors.WHITE + "FOUND: " + str(indicesToWords(game.neutral_words_chosen, i2v)) + bcolors.ENDC)
     print(bcolors.WHITE + "LEFT: " + str(indicesToWords(game.neutral_words_remaining, i2v)) + bcolors.ENDC)
 
-    print(bcolors.BLACK + "DANGER: " + str(indicesToWords([game.danger_words_remaining], i2v)) + bcolors.ENDC)
+    print(bcolors.BLACK + "DANGER: " + str(indicesToWords(game.danger_words_remaining, i2v)) + bcolors.ENDC)
 
 
     if game.turn == 0:
@@ -131,9 +131,9 @@ def test(params):
 
 def processWordbank(filename):
     with open(filename, "r", encoding="utf-8") as f:
-        new_lines = [s.strip() for s in f.readlines()]
+        new_lines = [s.strip().lower() for s in f.readlines()]
         vocab_to_index = {w: i for i, w in enumerate(new_lines)}
-        vocab_to_index["<UNK>"] = len(vocab_to_index)
+        vocab_to_index["<UNK>"] = len(vocab_to_index)+1
         index_to_vocab = {i: w for i, w in enumerate(new_lines)}
         index_to_vocab[len(index_to_vocab)] = "<UNK>"
         return new_lines, vocab_to_index, index_to_vocab
@@ -142,7 +142,7 @@ def wordsToIndices(words, v2i):
     return [v2i[word] for word in words]
 
 def indicesToWords(indices, i2v):
-    return [i2v[index] for index in indices if indices[index] == 1]
+    return [i2v[i] for i in range(len(indices)) if indices[i] == 1]
 
 
 '''
@@ -186,10 +186,6 @@ def run(params):
         gameIndexbank = wordsToIndices(gameWordbank, v2i)
         game = Game(gameIndexbank, 8, len(v2i))
 
-        # if logging, display board
-        if params['display']:
-            display(game, i2v)
-
         curCodemaster = params["codemasterRed"]
         curGuesser = params["guesserRed"]
         
@@ -198,6 +194,10 @@ def run(params):
         '''
         steps = 0       # steps since the last positive reward
         while (not game.crash) and (not game.end):
+            # if logging, display board
+            if params['display']:
+                display(game, i2v)
+
             if not params['train']:
                 ''' check into epsilon because it's initialized upon object creation'''
                 curCodemaster.epsilon = 0.01
@@ -239,6 +239,8 @@ def run(params):
                 else:
                     hint = v2i["<UNK>"]
 
+            print("V2I:", v2i)
+            print("HINT:", hint)
             # perform new move and get new state
             count = game.process_hint(hint, count)
             # get old state
@@ -265,7 +267,7 @@ def run(params):
                         # generate remaining number of guesses
                         guesses = curGuesser(guesser_state_old_tensor, hint, remaining_count)
             else:
-                guesses = curGuesser()
+                guesses = [curGuesser() for i in range(count)]
 
             # try each guess 
             accumulated_own_guessed = 0
@@ -274,6 +276,8 @@ def run(params):
             accumulated_danger_guessed = 0
             accumulated_previously_guessed = 0
             for guess in guesses:
+                print(guess)
+                print(v2i)
                 if guess in v2i:
                     guess = v2i[guess]
                 else:
@@ -324,7 +328,7 @@ def run(params):
                 guesser_state_new_multihot = torch.from_numpy(guesser_state_new)
                 
                 curCodemaster.train_short_memory(codemaster_state_old_multihot, hint_multihot, codemaster_reward, codemaster_state_new_multihot, game.crash)
-                curCodemaster.remember(codemaster_state_old_multihot, hint_multihot, count, codemaster_reward, codemaster_state_new_multihot, game.crash)
+                curCodemaster.remember(codemaster_state_old_multihot, hint_multihot, codemaster_reward, codemaster_state_new_multihot, game.crash)
                 
                 curGuesser.train_short_memory(guesser_state_old_multihot, guess, guesser_reward, guesser_state_new_multihot, game.crash)
                 curGuesser.remember(guesser_state_old_multihot, guess, guesser_reward, guesser_state_new_multihot, game.crash)

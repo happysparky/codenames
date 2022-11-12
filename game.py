@@ -90,6 +90,9 @@ class Game:
         num_neutral_guessed = 0
         num_danger_guessed = 0
 
+        print("guess:", guess)
+        print(self.all_guesses)
+
         if self.all_guesses[guess] == 1:
             num_previously_guessed += 1
         else:
@@ -179,17 +182,17 @@ class Game:
         """
         remaining = np.zeros(self.vocab_size)
         remaining = self.red_words_remaining + self.blue_words_remaining + self.neutral_words_remaining + self.danger_words_remaining
-        state = [
+        state = np.array([
             self.red_hints,
             self.red_words_chosen,
             self.blue_hints,
             self.blue_words_chosen,
             self.neutral_words_chosen,   
             self.all_guesses,
-            remaining     
-        ]
+            remaining  
+        ])
 
-        return np.asarray(state, dtype=object)
+        return state
 
     # Create array of random guesses
     # Performs iterative guessing from all words on the board, checking to make sure that the word hasn't been guessed
