@@ -17,8 +17,11 @@ can probably rename this class to AgentGuesser or something to match HumanGuesse
 '''
 
 class AgentGuesser(Guesser):
-    def __init__(self, params):
+    def __init__(self, params, i2v):
         super().__init__()
+
+        self.i2v = i2v
+
         self.reward = 0
         self.gamma = 0.9
         self.dataframe = pd.DataFrame()
@@ -31,6 +34,7 @@ class AgentGuesser(Guesser):
         self.first_layer = params['first_layer_size']
         self.second_layer = params['second_layer_size']
         self.third_layer = params['third_layer_size']
+
         self.memory = collections.deque(maxlen=params['memory_size'])
         self.weights = params['weights_path']
         self.load_weights = params['load_weights']
@@ -42,7 +46,7 @@ class AgentGuesser(Guesser):
         self.f1 = nn.Linear(4711, self.first_layer)
         self.f2 = nn.Linear(self.first_layer, self.second_layer)
         self.f3 = nn.Linear(self.second_layer, self.third_layer)
-        self.f4 = nn.Linear(self.third_layer, 3)
+        self.f4 = nn.Linear(self.third_layer, len(self.i2v))
         # weights
         if self.load_weights:
             self.model = self.load_state_dict(torch.load(self.weights))
@@ -52,6 +56,7 @@ class AgentGuesser(Guesser):
         x = F.relu(self.f1(x))
         x = F.relu(self.f2(x))
         x = F.relu(self.f3(x))
+        print("forward pass shape", x.shape)
         x = F.softmax(self.f4(x), dim=-1)
         return x
 
@@ -123,8 +128,8 @@ class AgentGuesser(Guesser):
         # get a warning for copy construct tensor using skeleton code so consider using the commented out versions below (but have to fix type bug with double vs float)
         # next_state_tensor = next_state.clone().detach().reshape((1, 4711)).to(DEVICE)
         # state_tensor = state.clone().detach().reshape((1, 4711)).requires_grad_(True).to(DEVICE)
-        next_state_tensor = torch.tensor(next_state.reshape((1, 4711)), dtype=torch.float32).to(DEVICE)
-        state_tensor = torch.tensor(state.reshape((1, 4711)), dtype=torch.float32, requires_grad=True).to(DEVICE)
+        next_state_tensor = next_state.clone().detach().reshape((1, 4711)).to(DEVICE)
+        state_tensor = state.clone().detach().reshape((1, 4711)).requires_grad_(True).to(DEVICE)
 
         if not done:
             target = reward + self.gamma * torch.max(self.forward(next_state_tensor[0]))

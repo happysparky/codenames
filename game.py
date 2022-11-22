@@ -58,6 +58,8 @@ class Game:
         self.board = wordList
         # 0 represents blue's turn, 1 is red's turn
         self.turn = 0
+        # Score represents how many turns it takes to complete a game
+        self.score = 0
         self.end = False
 
         ''' Set this to true somewhere'''
@@ -80,6 +82,8 @@ class Game:
             self.blue_hints[hint] = 1
             if count > self.blue_words_remaining_count:
                 count = self.blue_words_remaining_count
+
+        self.score += 1
         return count
 
     # makes guesses and returns metrics of how good the guess is 
@@ -89,6 +93,9 @@ class Game:
         num_opposing_guessed = 0
         num_neutral_guessed = 0
         num_danger_guessed = 0
+
+        print("guess:", guess)
+        print(self.all_guesses)
 
         if self.all_guesses[guess] == 1:
             num_previously_guessed += 1
@@ -179,17 +186,17 @@ class Game:
         """
         remaining = np.zeros(self.vocab_size)
         remaining = self.red_words_remaining + self.blue_words_remaining + self.neutral_words_remaining + self.danger_words_remaining
-        state = [
+        state = np.array([
             self.red_hints,
             self.red_words_chosen,
             self.blue_hints,
             self.blue_words_chosen,
             self.neutral_words_chosen,   
             self.all_guesses,
-            remaining     
-        ]
+            remaining  
+        ])
 
-        return np.asarray(state, dtype=object)
+        return state
 
     # Create array of random guesses
     # Performs iterative guessing from all words on the board, checking to make sure that the word hasn't been guessed
@@ -199,7 +206,7 @@ class Game:
         generated_guesses = []
         guessed = 0
         while len(generated_guesses) < count and guessed < len(self.board):
-            guess = random.randint(0,len(self.board) )
+            guess = random.randint(0, self.vocab_size )
             if self.all_guesses[guess] == 0 and guess not in generated_guesses:
                 generated_guesses.append(guess)
             guessed += 1

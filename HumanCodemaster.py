@@ -12,6 +12,7 @@ class HumanCodemaster(Codemaster):
         add checks to ensure input is fine
         '''
         numWords = int(numWords)
+        hint = hint.lower()
         return (hint, numWords)
 
     def postprocess(self, game):
