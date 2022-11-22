@@ -53,10 +53,10 @@ class AgentGuesser(Guesser):
             print("weights loaded")
 
     def forward(self, x):
+        print("forward pass input", x.double())
         x = F.relu(self.f1(x))
         x = F.relu(self.f2(x))
         x = F.relu(self.f3(x))
-        print("forward pass shape", x.shape)
         x = F.softmax(self.f4(x), dim=-1)
         return x
 
@@ -99,8 +99,9 @@ class AgentGuesser(Guesser):
             torch.set_grad_enabled(True)
             target = reward
             # changed float to double
-            next_state_tensor = torch.tensor(np.expand_dims(next_state, 0), dtype=torch.float32).to(DEVICE)
-            state_tensor = torch.tensor(np.expand_dims(state, 0), dtype=torch.float32, requires_grad=True).to(DEVICE)
+            next_state_tensor = torch.tensor(np.expand_dims(next_state, 0), dtype=torch.double).to(DEVICE)
+            state_tensor = torch.tensor(np.expand_dims(state, 0), dtype=torch.double, requires_grad=True).to(DEVICE)
+
             if not done:
                 target = reward + self.gamma * torch.max(self.forward(next_state_tensor)[0])
             output = self.forward(state_tensor)
@@ -125,11 +126,10 @@ class AgentGuesser(Guesser):
         # each of the 7 things has 673 (vocab size) spots
         # 7 x 673 = 4711
 
-        # get a warning for copy construct tensor using skeleton code so consider using the commented out versions below (but have to fix type bug with double vs float)
-        # next_state_tensor = next_state.clone().detach().reshape((1, 4711)).to(DEVICE)
-        # state_tensor = state.clone().detach().reshape((1, 4711)).requires_grad_(True).to(DEVICE)
-        next_state_tensor = next_state.clone().detach().reshape((1, 4711)).to(DEVICE)
-        state_tensor = state.clone().detach().reshape((1, 4711)).requires_grad_(True).to(DEVICE)
+        next_state_tensor = next_state.double().clone().detach().reshape((1, 4711)).to(DEVICE)
+        state_tensor = state.double().clone().detach().reshape((1, 4711)).requires_grad_(True).to(DEVICE)
+
+        print('forward pass type,', type(next_state_tensor), type(next_state_tensor[0]))
 
         if not done:
             target = reward + self.gamma * torch.max(self.forward(next_state_tensor[0]))

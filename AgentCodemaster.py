@@ -16,8 +16,8 @@ DEVICE = 'cpu' # 'cuda' if torch.cuda.is_available() else 'cpu'
 can probably rename this class to AgentCodemaster or something to follow same pattern as humanCodemaster
 '''
 
-class AgentCodemaster(Codemaster, i2v):
-    def __init__(self, params):
+class AgentCodemaster(Codemaster):
+    def __init__(self, params, i2v):
         super().__init__()
 
         self.i2v = i2v
@@ -96,8 +96,8 @@ class AgentCodemaster(Codemaster, i2v):
             self.train()
             torch.set_grad_enabled(True)
             target = reward
-            next_state_tensor = torch.tensor(np.expand_dims(next_state, 0), dtype=torch.float32).to(DEVICE)
-            state_tensor = torch.tensor(np.expand_dims(state, 0), dtype=torch.float32, requires_grad=True).to(DEVICE)
+            next_state_tensor = torch.tensor(np.expand_dims(next_state, 0), dtype=torch.double).to(DEVICE)
+            state_tensor = torch.tensor(np.expand_dims(state, 0), dtype=torch.double, requires_grad=True).to(DEVICE)
             if not done:
                 target = reward + self.gamma * torch.max(self.forward(next_state_tensor)[0])
             output = self.forward(state_tensor)
@@ -124,8 +124,8 @@ class AgentCodemaster(Codemaster, i2v):
         # a state contains 10 things to consider
         # each of the 7 things has 673 (vocab size) spots
         # 10 x 673 = 6730
-        next_state_tensor = torch.tensor(next_state.reshape((1, 6730)), dtype=torch.float32).to(DEVICE)
-        state_tensor = torch.tensor(state.reshape((1, 6730)), dtype=torch.float32, requires_grad=True).to(DEVICE)
+        next_state_tensor = torch.tensor(next_state.reshape((1, 6730)), dtype=torch.double).to(DEVICE)
+        state_tensor = torch.tensor(state.reshape((1, 6730)), dtype=torch.double, requires_grad=True).to(DEVICE)
         if not done:
             target = reward + self.gamma * torch.max(self.forward(next_state_tensor[0]))
         output = self.forward(state_tensor)

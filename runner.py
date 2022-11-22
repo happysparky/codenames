@@ -258,7 +258,7 @@ def run(params, listOfWords, v2i, i2v):
                 else:
                     # predict action based on the old state
                     with torch.no_grad():
-                        guesser_state_old_tensor = torch.tensor(guesser_state_old.reshape((1, 11)), dtype=torch.float32).to(DEVICE)
+                        guesser_state_old_tensor = torch.tensor(guesser_state_old.reshape((1, 11)), dtype=torch.double).to(DEVICE)
                         # TODO: generate guesses based on hint
                         # generate remaining number of guesses
                         guesses = curGuesser(guesser_state_old_tensor, hint, remaining_count)
@@ -364,12 +364,12 @@ def initialize_player(player, params, v2i, i2v):
         return HumanGuesser(v2i, i2v)
     elif player == AgentCodemaster:
         agent = AgentCodemaster(params, i2v)
-        agent = agent.to(DEVICE)
+        agent = agent.to(DEVICE).double()
         agent.optimizer = optim.Adam(agent.parameters(), weight_decay=0, lr=params['learning_rate'])
         return agent
     elif player == AgentGuesser:
         agent = AgentGuesser(params, i2v)
-        agent = agent.to(DEVICE)
+        agent = agent.to(DEVICE).double()
         agent.optimizer = optim.Adam(agent.parameters(), weight_decay=0, lr=params['learning_rate'])
         return agent 
 
