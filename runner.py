@@ -259,7 +259,6 @@ def run(params, listOfWords, v2i, i2v):
                     # predict action based on the old state
                     with torch.no_grad():
                         guesser_state_old_tensor = torch.tensor(guesser_state_old.reshape((1, 11)), dtype=torch.double).to(DEVICE)
-                        # TODO: generate guesses based on hint
                         # generate remaining number of guesses
                         guesses = curGuesser(guesser_state_old_tensor, hint, remaining_count)
                         guesses = game.get_guesses_from_tensor(guesses, count)
