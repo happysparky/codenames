@@ -262,6 +262,7 @@ def run(params, listOfWords, v2i, i2v):
                         # TODO: generate guesses based on hint
                         # generate remaining number of guesses
                         guesses = curGuesser(guesser_state_old_tensor, hint, remaining_count)
+                        guesses = game.get_guesses_from_tensor(guesses, count)
             else:
                 guesses = [curGuesser() for i in range(count)]
 

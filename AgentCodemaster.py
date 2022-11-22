@@ -119,26 +119,22 @@ class AgentCodemaster(Codemaster):
         torch.set_grad_enabled(True)
         target = reward
 
-        print(state)
-
         # a state contains 10 things to consider
         # each of the 7 things has 673 (vocab size) spots
         # 10 x 673 = 6730
-        next_state_tensor = torch.tensor(next_state.reshape((1, 6730)), dtype=torch.double).to(DEVICE)
-        state_tensor = torch.tensor(state.reshape((1, 6730)), dtype=torch.double, requires_grad=True).to(DEVICE)
+        next_state_tensor = next_state.double().clone().detach().reshape((1, 6730)).to(DEVICE)
+        state_tensor = state.double().clone().detach().reshape((1, 6730)).requires_grad_(True).to(DEVICE)
+
+
         if not done:
             target = reward + self.gamma * torch.max(self.forward(next_state_tensor[0]))
         output = self.forward(state_tensor)
         target_f = output.clone()
-        print("target")
-        print(target)
-        print("\n")
-        print("argmax")
-        print(np.argmax(action))
-        print("\n")
-        print("target_f")
-        print(target_f[0])
-        print("\n")
+        
+        print("target", target, '\n')
+        print("argmax", np.argmax(action), '\n')
+        print("target_f", target_f[0], '\n')
+
         target_f[0][np.argmax(action)] = target
         target_f.detach()
         self.optimizer.zero_grad()

@@ -213,6 +213,20 @@ class Game:
 
         # return the maximum number of guesses possible for this team
         return generated_guesses
+
+    # Determines the top |count| guesses based on the model's prediction and based on the available words
+    # Returns the indices of those words
+    def get_guesses_from_tensor(self, guessTensor, count):
+
+        generated_guesses = []
+        for i in range(len(self.board)):
+            generated_guesses.append((guessTensor[self.board[i]], i))
+
+        generated_guesses.sort(key=lambda x: x[0], reverse=True)
+        generated_guesses = [index for (value, index) in generated_guesses]
+        generated_guesses = generated_guesses[:count]
+
+        return generated_guesses
         
     # Generates a random hint based on the vocabulary
     def generate_random_hint(self):

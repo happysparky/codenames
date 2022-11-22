@@ -53,11 +53,11 @@ class AgentGuesser(Guesser):
             print("weights loaded")
 
     def forward(self, x):
-        print("forward pass input", x.double())
         x = F.relu(self.f1(x))
         x = F.relu(self.f2(x))
         x = F.relu(self.f3(x))
         x = F.softmax(self.f4(x), dim=-1)
+        print("GUESSER OUTPUT", x)
         return x
 
     def set_reward(self, num_own_guessed, num_opposing_guessed, num_neutral_guessed, num_danger_guessed, num_prev_guessed, game_ended):
@@ -128,8 +128,6 @@ class AgentGuesser(Guesser):
 
         next_state_tensor = next_state.double().clone().detach().reshape((1, 4711)).to(DEVICE)
         state_tensor = state.double().clone().detach().reshape((1, 4711)).requires_grad_(True).to(DEVICE)
-
-        print('forward pass type,', type(next_state_tensor), type(next_state_tensor[0]))
 
         if not done:
             target = reward + self.gamma * torch.max(self.forward(next_state_tensor[0]))
