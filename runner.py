@@ -168,12 +168,10 @@ def token_to_multihot(tokens, vocab_size):
     # cast numpy array to tensor before returning
     return torch.from_numpy(res)
 
-def run(params):
+def run(params, listOfWords, v2i, i2v):
     """
     Run the session, based on the parameters previously set.   
     """
-
-    listOfWords, v2i, i2v = processWordbank('wordbank.txt')
        
     counter_games = 0
     score_plot = []
@@ -274,12 +272,7 @@ def run(params):
             accumulated_danger_guessed = 0
             accumulated_previously_guessed = 0
             for guess in guesses:
-                print(guess)
-                print(v2i)
-                if guess in v2i:
-                    guess = v2i[guess]
-                else:
-                    guess = v2i["<UNK>"]
+                print("this is the current guess:", guess)
                 # update the game state
                 num_own_guessed, num_opposing_guessed, num_neutral_guessed, num_danger_guessed, num_previously_guessed = game.process_single_guess(guess)
                 accumulated_own_guessed += num_own_guessed
@@ -364,18 +357,18 @@ def run(params):
 
     return score_plot, counter_plot
 
-def initialize_player(player, params):
+def initialize_player(player, params, v2i, i2v):
     if player == HumanCodemaster:
         return HumanCodemaster()
     elif player == HumanGuesser:
-        return HumanGuesser()
+        return HumanGuesser(v2i, i2v)
     elif player == AgentCodemaster:
-        agent = AgentCodemaster(params)
+        agent = AgentCodemaster(params, i2v)
         agent = agent.to(DEVICE)
         agent.optimizer = optim.Adam(agent.parameters(), weight_decay=0, lr=params['learning_rate'])
         return agent
     elif player == AgentGuesser:
-        agent = AgentGuesser(params)
+        agent = AgentGuesser(params, i2v)
         agent = agent.to(DEVICE)
         agent.optimizer = optim.Adam(agent.parameters(), weight_decay=0, lr=params['learning_rate'])
         return agent 
@@ -410,6 +403,8 @@ if __name__ == '__main__':
     '''
     # params['seed'] = randint()
 
+    listOfWords, v2i, i2v = processWordbank('wordbank.txt')
+
     if params['train']:
         print("Training...")
         params['load_weights'] = False   # when training, the network is not pre-trained
@@ -418,11 +413,11 @@ if __name__ == '__main__':
         params['train'] = False
         params['load_weights'] = True
 
-    params["codemasterRed"] = initialize_player(codemasterRed, params)
-    params["codemasterBlue"] = initialize_player(codemasterBlue, params)
-    params["guesserRed"] = initialize_player(guesserRed, params)
-    params["guesserBlue"] = initialize_player(guesserBlue, params)
+    params["codemasterRed"] = initialize_player(codemasterRed, params, v2i, i2v)
+    params["codemasterBlue"] = initialize_player(codemasterBlue, params, v2i, i2v)
+    params["guesserRed"] = initialize_player(guesserRed, params, v2i, i2v)
+    params["guesserBlue"] = initialize_player(guesserBlue, params, v2i, i2v)
 
-    score_plot, counter_plot = run(params)
+    score_plot, counter_plot = run(params, listOfWords, v2i, i2v)
     print(score_plot)
     print(counter_plot)

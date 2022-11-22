@@ -1,13 +1,18 @@
 from Guesser import Guesser
 class HumanGuesser(Guesser):
-    def __init__(self):
+    def __init__(self, v2i, i2v):
         super().__init__()
+        self.i2v = i2v
         return
 
     def forward(self):
         guess = input("Enter your guess: ")
         guess = guess.strip()
         guess = guess.lower()
+        if guess in self.i2v:
+            guess = self.i2v[guess]
+        else:
+            guess = self.i2v["<UNK>"]
         return guess
 
     def train_short_memory(self, state, action, reward, next_state, done):

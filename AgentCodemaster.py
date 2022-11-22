@@ -16,9 +16,12 @@ DEVICE = 'cpu' # 'cuda' if torch.cuda.is_available() else 'cpu'
 can probably rename this class to AgentCodemaster or something to follow same pattern as humanCodemaster
 '''
 
-class AgentCodemaster(Codemaster):
+class AgentCodemaster(Codemaster, i2v):
     def __init__(self, params):
         super().__init__()
+
+        self.i2v = i2v
+
         self.reward = 0
         self.gamma = 0.9
         self.dataframe = pd.DataFrame()
@@ -42,7 +45,7 @@ class AgentCodemaster(Codemaster):
         self.f1 = nn.Linear(6730, self.first_layer)
         self.f2 = nn.Linear(self.first_layer, self.second_layer)
         self.f3 = nn.Linear(self.second_layer, self.third_layer)
-        self.f4 = nn.Linear(self.third_layer, 3)
+        self.f4 = nn.Linear(self.third_layer, len(self.i2v))
         # weights
         if self.load_weights:
             self.model = self.load_state_dict(torch.load(self.weights))

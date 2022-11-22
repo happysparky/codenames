@@ -206,7 +206,7 @@ class Game:
         generated_guesses = []
         guessed = 0
         while len(generated_guesses) < count and guessed < len(self.board):
-            guess = random.randint(0,len(self.board) )
+            guess = random.randint(0, self.vocab_size )
             if self.all_guesses[guess] == 0 and guess not in generated_guesses:
                 generated_guesses.append(guess)
             guessed += 1
