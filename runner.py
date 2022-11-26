@@ -159,8 +159,7 @@ def run(params, listOfWords, v2i, i2v):
         # Initialize game state
         gameWordbank = random.sample(listOfWords, k=25)
         gameIndexbank = wordsToIndices(gameWordbank, v2i)
-        game = Game(gameIndexbank, 1, len(v2i))
-        # game = Game(gameIndexbank, 8, len(v2i))
+        game = Game(gameIndexbank, 8, len(v2i))
 
         curCodemaster = params["codemasterRed"]
         curGuesser = params["guesserRed"]
@@ -340,6 +339,7 @@ def run(params, listOfWords, v2i, i2v):
                     curGuesser = params["guesserRed"]
             
             steps += 1
+            
 
         '''
         different batch size for codemaster and guesser?
@@ -355,28 +355,31 @@ def run(params, listOfWords, v2i, i2v):
         counter_plot.append(counter_games)
 
     if params['train']:
-        if type(curCodemaster) == AgentCodemaster:
-            codemaster_model_weights = curCodemaster.state_dict()
-            torch.save(codemaster_model_weights, params["weights_path"])
-        
-        if type(curGuesser) == AgentGuesser:
-            guesser_model_weights = curGuesser.state_dict()
-            torch.save(guesser_model_weights, params["weights_path"])
+    
+        if type(params["codemasterRed"]) == AgentCodemaster:
+            torch.save(params["codemasterRed"].state_dict(), params["red_codemaster_weights"])
+        if type(params["codemasterBlue"]) == AgentCodemaster:
+            torch.save(params["codemasterBlue"].state_dict(), params["blue_codemaster_weights"])
+        if type(params["guesserRed"]) == AgentGuesser:
+            torch.save(params["guesserRed"].state_dict(), params["red_guesser_weights"])
+        if type(params["guesserBlue"]) == AgentGuesser:
+            torch.save(params["guesserBlue"].state_dict(), params["blue_guesser_weights"])
+
 
     return score_plot, counter_plot
 
-def initialize_player(player, params, v2i, i2v):
+def initialize_player(player, params, v2i, i2v, team):
     if player == HumanCodemaster:
         return HumanCodemaster()
     elif player == HumanGuesser:
         return HumanGuesser(v2i, i2v)
     elif player == AgentCodemaster:
-        agent = AgentCodemaster(params, i2v)
+        agent = AgentCodemaster(params, i2v, team)
         agent = agent.to(DEVICE).double()
         agent.optimizer = optim.Adam(agent.parameters(), weight_decay=0, lr=params['learning_rate'])
         return agent
     elif player == AgentGuesser:
-        agent = AgentGuesser(params, i2v)
+        agent = AgentGuesser(params, i2v, team)
         agent = agent.to(DEVICE).double()
         agent.optimizer = optim.Adam(agent.parameters(), weight_decay=0, lr=params['learning_rate'])
         return agent 
@@ -393,7 +396,12 @@ if __name__ == '__main__':
     parser.add_argument("--no_log", help="Supress logging", action='store_true', default=False)
     parser.add_argument("--no_print", help="Supress printing", action='store_true', default=False)
     parser.add_argument("--game_name", help="Name of game in log", default="default")
-    
+
+    parser.add_argument("--red_codemaster_weights", help="where the weights of the red codemaster agent are stored", default="weights/RedCodemasterWeights")
+    parser.add_argument("--blue_codemaster_weights", help="where the weights of the blue codemaster agent are stored", default="weights/BlueCodemasterWeights")
+    parser.add_argument("--red_guesser_weights", help="where the weights of the red guesser agent are stored", default="weights/RedGuesserWeights")
+    parser.add_argument("--blue_guesser_weights", help="where the weights of the blue guesser agent are stored", default="weights/BlueGuesserWeights")
+
     args = parser.parse_args()
     print("Args", args)
 
@@ -405,12 +413,6 @@ if __name__ == '__main__':
     guesserRed = HumanGuesser if args.guesserRed else AgentGuesser
     guesserBlue = HumanGuesser if args.guesserBlue else AgentGuesser
 
-    '''
-    Not sure what this does so commenting it out for now
-    Also randint() requires positional arguments
-    '''
-    # params['seed'] = randint()
-
     listOfWords, v2i, i2v = processWordbank('wordbank.txt')
 
     if params['train']:
@@ -421,10 +423,15 @@ if __name__ == '__main__':
         params['train'] = False
         params['load_weights'] = True
 
-    params["codemasterRed"] = initialize_player(codemasterRed, params, v2i, i2v)
-    params["codemasterBlue"] = initialize_player(codemasterBlue, params, v2i, i2v)
-    params["guesserRed"] = initialize_player(guesserRed, params, v2i, i2v)
-    params["guesserBlue"] = initialize_player(guesserBlue, params, v2i, i2v)
+    params["red_codemaster_weights"] = args.red_codemaster_weights
+    params["blue_codemaster_weights"] = args.blue_codemaster_weights
+    params["red_guesser_weights"] = args.red_guesser_weights
+    params['blue_guesser_weights'] = args.blue_guesser_weights
+
+    params["codemasterRed"] = initialize_player(codemasterRed, params, v2i, i2v, 'red')
+    params["codemasterBlue"] = initialize_player(codemasterBlue, params, v2i, i2v, 'blue')
+    params["guesserRed"] = initialize_player(guesserRed, params, v2i, i2v, 'red')
+    params["guesserBlue"] = initialize_player(guesserBlue, params, v2i, i2v, 'blue')
 
     score_plot, counter_plot = run(params, listOfWords, v2i, i2v)
     print(score_plot)

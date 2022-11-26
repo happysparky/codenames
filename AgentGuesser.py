@@ -17,7 +17,7 @@ can probably rename this class to AgentGuesser or something to match HumanGuesse
 '''
 
 class AgentGuesser(Guesser):
-    def __init__(self, params, i2v):
+    def __init__(self, params, i2v, team):
         super().__init__()
 
         self.i2v = i2v
@@ -36,7 +36,10 @@ class AgentGuesser(Guesser):
         self.third_layer = params['third_layer_size']
 
         self.memory = collections.deque(maxlen=params['memory_size'])
-        self.weights = params['weights_path']
+        if team == 'red':
+            self.weights = params['red_guesser_weights']
+        elif team == 'blue':
+            self.weights = params['blue_guesser_weights']
         self.load_weights = params['load_weights']
         self.optimizer = None
         self.network()

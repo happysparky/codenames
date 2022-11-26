@@ -20,7 +20,7 @@ can probably rename this class to AgentCodemaster or something to follow same pa
 '''
 
 class AgentCodemaster(Codemaster):
-    def __init__(self, params, i2v):
+    def __init__(self, params, i2v, team):
         super().__init__()
 
         self.i2v = i2v
@@ -38,7 +38,10 @@ class AgentCodemaster(Codemaster):
         self.second_layer = params['second_layer_size']
         self.third_layer = params['third_layer_size']
         self.memory = collections.deque(maxlen=params['memory_size'])
-        self.weights = params['weights_path']
+        if team == 'red':
+            self.weights = params['red_codemaster_weights']
+        elif team == 'blue':
+            self.weights = params['blue_codemaster_weights']
         self.load_weights = params['load_weights']
         self.optimizer = None
         self.network()
@@ -78,6 +81,7 @@ class AgentCodemaster(Codemaster):
         # TODO: add "don't-suggest-a-previous-hint" penalty
         # TODO: don't give more a clue that applies to more words than there are left
         # TODO: add "don't suggest a number greater than the words remaining"
+        # TODO: add a big reward for winning the game
 
         self.reward = 10*num_own_guessed - 10*num_opposing_guessed - 5*num_neutral_guessed - 50*num_danger_guessed
         return self.reward
