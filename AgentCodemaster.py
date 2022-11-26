@@ -107,14 +107,23 @@ class AgentCodemaster(Codemaster):
                 hint_target = reward + self.gamma * torch.max(self.forward(next_state_tensor)[0])
                 count_target = reward + self.gamma * torch.max(self.forward(next_state_tensor)[1])
                 target = (hint_target, count_target)
-            output = self.forward(state_tensor)
-            target_f = output.clone()
-            target_f[0][np.argmax(action)] = target[0]
-            target_f.detach()
+
+        
+            hintOutput, countOutput = self.forward(state_tensor) 
+            target_f_hint, target_f_count = hintOutput.clone(), countOutput.clone()
+            target_f_hint[torch.argmax(action)] = target[0]
+            target_f_hint.detach()
+            target_f_count[math.floor(torch.max(action))] = target[1]
+            target_f_count.detach()
+
             self.optimizer.zero_grad()
-            loss = F.mse_loss(output, target_f)
+
+            # Sum loss for both hint and count
+            loss = F.mse_loss(hintOutput, target_f_hint)
+            loss += F.mse_loss(countOutput, target_f_count)
+
             loss.backward()
-            self.optimizer.step()            
+            self.optimizer.step()     
 
 
     def train_short_memory(self, state, action, reward, next_state, done):

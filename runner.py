@@ -206,8 +206,7 @@ def run(params, listOfWords, v2i, i2v):
                     with torch.no_grad():
                         codemaster_state_old_tensor = torch.from_numpy(codemaster_state_old).to(DEVICE)
                         codemaster_state_old_tensor = torch.flatten(codemaster_state_old_tensor)
-                        print("codemaster_old_dim: ")
-                        print(codemaster_state_old_tensor.size())
+            
                         hint_tensor, count_tensor = curCodemaster(codemaster_state_old_tensor)
                         # TODO: generate word/number pair based on prediction
                         hint = torch.argmax(hint_tensor).item()
@@ -267,8 +266,8 @@ def run(params, listOfWords, v2i, i2v):
                 else:
                     guess = curGuesser()
 
-
-                print("this is the current guess:", guess)
+                
+                print("this is the current guess: " + i2v[guess[0]])
                 # update the game state
                 num_own_guessed, num_opposing_guessed, num_neutral_guessed, num_danger_guessed, num_previously_guessed = game.process_single_guess(guess)
                 accumulated_own_guessed += num_own_guessed
@@ -276,6 +275,9 @@ def run(params, listOfWords, v2i, i2v):
                 accumulated_neutral_guessed += num_neutral_guessed
                 accumulated_danger_guessed += num_danger_guessed
                 accumulated_previously_guessed += num_previously_guessed
+
+                if params['display']:
+                    display(game, i2v)
 
                 guesser_state_new = game.get_guesser_state()
 

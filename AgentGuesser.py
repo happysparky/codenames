@@ -100,14 +100,15 @@ class AgentGuesser(Guesser):
             torch.set_grad_enabled(True)
             target = reward
             # changed float to double
-            next_state_tensor = torch.tensor(np.expand_dims(next_state, 0), dtype=torch.double).to(DEVICE)
-            state_tensor = torch.tensor(np.expand_dims(state, 0), dtype=torch.double, requires_grad=True).to(DEVICE)
+            next_state_tensor = torch.flatten(torch.tensor(np.expand_dims(next_state, 0), dtype=torch.double)).to(DEVICE)
+            state_tensor = torch.flatten(torch.tensor(np.expand_dims(state, 0), dtype=torch.double, requires_grad=True)).to(DEVICE)
 
             if not done:
                 target = reward + self.gamma * torch.max(self.forward(next_state_tensor)[0])
             output = self.forward(state_tensor)
             target_f = output.clone()
-            target_f[0][np.argmax(action)] = target
+
+            target_f[np.argmax(action)] = target
             target_f.detach()
             self.optimizer.zero_grad()
             loss = F.mse_loss(output, target_f)
