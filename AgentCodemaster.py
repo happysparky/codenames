@@ -100,14 +100,16 @@ class AgentCodemaster(Codemaster):
         for state, action, reward, next_state, done in minibatch:
             self.train()
             torch.set_grad_enabled(True)
-            target = reward
-            next_state_tensor = torch.tensor(np.expand_dims(next_state, 0), dtype=torch.double).to(DEVICE)
-            state_tensor = torch.tensor(np.expand_dims(state, 0), dtype=torch.double, requires_grad=True).to(DEVICE)
+            target = (reward, reward)
+            next_state_tensor = torch.flatten(torch.tensor(np.expand_dims(next_state, 0), dtype=torch.double)).to(DEVICE)
+            state_tensor = torch.flatten(torch.tensor(np.expand_dims(state, 0), dtype=torch.double, requires_grad=True)).to(DEVICE)
             if not done:
-                target = reward + self.gamma * torch.max(self.forward(next_state_tensor)[0])
+                hint_target = reward + self.gamma * torch.max(self.forward(next_state_tensor)[0])
+                count_target = reward + self.gamma * torch.max(self.forward(next_state_tensor)[1])
+                target = (hint_target, count_target)
             output = self.forward(state_tensor)
             target_f = output.clone()
-            target_f[0][np.argmax(action)] = target
+            target_f[0][np.argmax(action)] = target[0]
             target_f.detach()
             self.optimizer.zero_grad()
             loss = F.mse_loss(output, target_f)
@@ -122,7 +124,7 @@ class AgentCodemaster(Codemaster):
         """
         self.train()
         torch.set_grad_enabled(True)
-        target = reward
+        target = (reward, reward)
 
         # a state contains 10 things to consider
         # each of the 7 things has 673 (vocab size) spots
@@ -132,7 +134,9 @@ class AgentCodemaster(Codemaster):
 
 
         if not done:
-            target = reward + self.gamma * torch.max(self.forward(next_state_tensor)[0])
+            hint_target = reward + self.gamma * torch.max(self.forward(next_state_tensor)[0])
+            count_target = reward + self.gamma * torch.max(self.forward(next_state_tensor)[1])
+            target = (hint_target, count_target)
         hintOutput, countOutput = self.forward(state_tensor)
         target_f_hint, target_f_count = hintOutput.clone(), countOutput.clone()
         
@@ -142,9 +146,9 @@ class AgentCodemaster(Codemaster):
         # print("hint argmax & hint value", torch.argmax(action), torch.max(action), '\n')
         # print("target_f", target_f_hint[0], target_f_count[0], '\n')
 
-        target_f_hint[0][torch.argmax(action)] = target
+        target_f_hint[0][torch.argmax(action)] = target[0]
         target_f_hint.detach()
-        target_f_count[0][math.floor(torch.max(action))] = target
+        target_f_count[0][math.floor(torch.max(action))] = target[1]
         target_f_count.detach()
 
         self.optimizer.zero_grad()

@@ -206,7 +206,8 @@ def run(params, listOfWords, v2i, i2v):
                     with torch.no_grad():
                         codemaster_state_old_tensor = torch.from_numpy(codemaster_state_old).to(DEVICE)
                         codemaster_state_old_tensor = torch.flatten(codemaster_state_old_tensor)
-
+                        print("codemaster_old_dim: ")
+                        print(codemaster_state_old_tensor.size())
                         hint_tensor, count_tensor = curCodemaster(codemaster_state_old_tensor)
                         # TODO: generate word/number pair based on prediction
                         hint = torch.argmax(hint_tensor).item()
@@ -227,7 +228,6 @@ def run(params, listOfWords, v2i, i2v):
             # get old state
 
             codemaster_state_new = game.get_codemaster_state()
-            guesser_state_old = game.get_guesser_state()
             # print("GUESSER STATE", guesser_state_old.shape, guesser_state_old)
 
             # --- GUESSER ---
@@ -245,9 +245,12 @@ def run(params, listOfWords, v2i, i2v):
 
 
             for idx in range(max_num_guesses):
+                guesser_state_old = game.get_guesser_state()
+
                 # generate a guess
                 guess = ""
 
+                # TODO: change implementation of how guesses are generated to take argmax instead of iterating through every 1
                 if type(curGuesser) != HumanGuesser:
                     if random.uniform(0, 1) < curGuesser.epsilon:
                         guess = game.generate_random_guesses(1)
