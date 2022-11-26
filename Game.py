@@ -94,8 +94,8 @@ class Game:
         num_neutral_guessed = 0
         num_danger_guessed = 0
 
-        print("guess:", guess)
-        print(self.all_guesses)
+        # print("guess:", guess)
+        # print(self.all_guesses)
 
         if self.all_guesses[guess] == 1:
             num_previously_guessed += 1
@@ -219,11 +219,15 @@ class Game:
     def get_guesses_from_tensor(self, guessTensor, count):
 
         generated_guesses = []
+        # get the logits from the guessTensor for every word in the board
         for i in range(len(self.board)):
             generated_guesses.append((guessTensor[self.board[i]], i))
 
+        # sort the logits from highest to lowest 
         generated_guesses.sort(key=lambda x: x[0], reverse=True)
+        # get the indices (words) in sorted order
         generated_guesses = [index for (value, index) in generated_guesses]
+        # get the top |count| words
         generated_guesses = generated_guesses[:count]
 
         return generated_guesses

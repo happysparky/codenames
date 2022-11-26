@@ -145,29 +145,6 @@ def indicesToWords(indices, i2v):
     return [i2v[i] for i in range(len(indices)) if indices[i] == 1]
 
 
-'''
-probably want to rename this at some point because this can do both multihot encoding and one hot encoding 
-'''
-def token_to_multihot(tokens, vocab_size):
-    res = np.zeros((len(tokens), vocab_size))
-
-    # loop through rows
-    for idx in range(len(tokens)):
-        
-        # loop through columns
-
-        # handle if list (contexts)
-        if isinstance(tokens[idx], np.ndarray):
-            for token in tokens[idx]:
-                res[idx, token] = 1
-
-        # handle if a single word (input)
-        else:
-            res[idx, tokens[idx]] = 1
-
-    # cast numpy array to tensor before returning
-    return torch.from_numpy(res)
-
 def run(params, listOfWords, v2i, i2v):
     """
     Run the session, based on the parameters previously set.   
@@ -182,7 +159,8 @@ def run(params, listOfWords, v2i, i2v):
         # Initialize game state
         gameWordbank = random.sample(listOfWords, k=25)
         gameIndexbank = wordsToIndices(gameWordbank, v2i)
-        game = Game(gameIndexbank, 8, len(v2i))
+        game = Game(gameIndexbank, 1, len(v2i))
+        # game = Game(gameIndexbank, 8, len(v2i))
 
         curCodemaster = params["codemasterRed"]
         curGuesser = params["guesserRed"]
@@ -253,35 +231,39 @@ def run(params, listOfWords, v2i, i2v):
             # print("GUESSER STATE", guesser_state_old.shape, guesser_state_old)
 
             # --- GUESSER ---
-            guess = ""
-            # get maximum number of guesses possible amount of guesses back based on the hint
-            if game.turn == 0:
-                remaining_count = game.red_words_remaining_count
-            else:
-                remaining_count = game.blue_words_remaining_count
 
-            if type(curGuesser) != HumanGuesser:
-                if random.uniform(0, 1) < curGuesser.epsilon:
-                    guesses = game.generate_random_guesses(remaining_count)
-                else:
-                    # predict action based on the old state
-                    with torch.no_grad():
-                        guesser_state_old_tensor = torch.from_numpy(guesser_state_old).to(DEVICE)
-                        guesser_state_old_tensor = torch.flatten(guesser_state_old_tensor)
 
-                        # generate remaining number of guesses
-                        guesses = curGuesser(guesser_state_old_tensor)
-                        guesses = game.get_guesses_from_tensor(guesses, count)
-            else:
-                guesses = [curGuesser() for i in range(count)]
-
-            # try each guess 
+            # keep track of guesses made for codemaster and final guesser training
             accumulated_own_guessed = 0
             accumulated_opposing_guessed = 0
             accumulated_neutral_guessed = 0
             accumulated_danger_guessed = 0
             accumulated_previously_guessed = 0
-            for guess in guesses:
+
+            # can guess an extra word if all previous guesses for a hint are correct
+            max_num_guesses = count + 1
+
+
+            for idx in range(max_num_guesses):
+                # generate a guess
+                guess = ""
+
+                if type(curGuesser) != HumanGuesser:
+                    if random.uniform(0, 1) < curGuesser.epsilon:
+                        guess = game.generate_random_guesses(1)
+                    else:
+                        # predict action based on the old state
+                        with torch.no_grad():
+                            guesser_state_old_tensor = torch.from_numpy(guesser_state_old).to(DEVICE)
+                            guesser_state_old_tensor = torch.flatten(guesser_state_old_tensor)
+
+                            # generate remaining number of guesses
+                            guess = curGuesser(guesser_state_old_tensor)
+                            guess = game.get_guesses_from_tensor(guess, 1)
+                else:
+                    guess = curGuesser()
+
+
                 print("this is the current guess:", guess)
                 # update the game state
                 num_own_guessed, num_opposing_guessed, num_neutral_guessed, num_danger_guessed, num_previously_guessed = game.process_single_guess(guess)
@@ -299,13 +281,13 @@ def run(params, listOfWords, v2i, i2v):
                 # perform model weight updates/loss/etc
                 if params['train']:
                     vocab_size = len(i2v)
-                    guesser_state_old_multihot = torch.from_numpy(guesser_state_old)
-                    guesser_state_new_multihot = torch.from_numpy(guesser_state_new)
+                    guesser_state_old_tensor = torch.from_numpy(guesser_state_old)
+                    guesser_state_new_tensor = torch.from_numpy(guesser_state_new)
 
                     # train short memory base on the new action and state
-                    curGuesser.train_short_memory(guesser_state_old_multihot, guess, guesser_reward, guesser_state_new_multihot, game.crash)
+                    curGuesser.train_short_memory(guesser_state_old_tensor, guess, guesser_reward, guesser_state_new_tensor, game.crash)
                     # store the new data into a long term memory
-                    curGuesser.remember(guesser_state_old_multihot, guess, guesser_reward, guesser_state_new_multihot, game.crash)
+                    curGuesser.remember(guesser_state_old_tensor, guess, guesser_reward, guesser_state_new_tensor, game.crash)
 
                 # end this turn if failed to guess correctly or game ends
                 if num_own_guessed == 0 or game.end:
@@ -318,21 +300,21 @@ def run(params, listOfWords, v2i, i2v):
             if params['train']:
                 vocab_size = len(i2v)
 
-                codemaster_state_old_multihot = torch.from_numpy(codemaster_state_old)
-                codemaster_state_new_multihot = torch.from_numpy(codemaster_state_new)
+                codemaster_state_old_tensor = torch.from_numpy(codemaster_state_old)
+                codemaster_state_new_tensor = torch.from_numpy(codemaster_state_new)
 
-                hint_multihot = np.zeros(vocab_size)
-                hint_multihot[hint] = count
-                hint_multihot = torch.from_numpy(hint_multihot)
+                hint_tensor = np.zeros(vocab_size)
+                hint_tensor[hint] = count
+                hint_tensor = torch.from_numpy(hint_tensor)
                 
-                guesser_state_old_multihot = torch.from_numpy(guesser_state_old)
-                guesser_state_new_multihot = torch.from_numpy(guesser_state_new)
+                hint_tensorguesser_state_old_tensor = torch.from_numpy(guesser_state_old)
+                guesser_state_new_tensor = torch.from_numpy(guesser_state_new)
                 
-                curCodemaster.train_short_memory(codemaster_state_old_multihot, hint_multihot, codemaster_reward, codemaster_state_new_multihot, game.crash)
-                curCodemaster.remember(codemaster_state_old_multihot, hint_multihot, codemaster_reward, codemaster_state_new_multihot, game.crash)
+                curCodemaster.train_short_memory(codemaster_state_old_tensor, hint_tensor, codemaster_reward, codemaster_state_new_tensor, game.crash)
+                curCodemaster.remember(codemaster_state_old_tensor, hint_tensor, codemaster_reward, codemaster_state_new_tensor, game.crash)
                 
-                curGuesser.train_short_memory(guesser_state_old_multihot, guess, guesser_reward, guesser_state_new_multihot, game.crash)
-                curGuesser.remember(guesser_state_old_multihot, guess, guesser_reward, guesser_state_new_multihot, game.crash)
+                curGuesser.train_short_memory(hint_tensorguesser_state_old_tensor, guess, guesser_reward, guesser_state_new_tensor, game.crash)
+                curGuesser.remember(hint_tensorguesser_state_old_tensor, guess, guesser_reward, guesser_state_new_tensor, game.crash)
             
             # if the game hasn't ended, change turns
             if game.end == False:
@@ -359,11 +341,13 @@ def run(params, listOfWords, v2i, i2v):
         counter_plot.append(counter_games)
 
     if params['train']:
-        codemaster_model_weights = curCodemaster.state_dict()
-        torch.save(codemaster_model_weights, params["weights_path"])
+        if type(curCodemaster) == AgentCodemaster:
+            codemaster_model_weights = curCodemaster.state_dict()
+            torch.save(codemaster_model_weights, params["weights_path"])
         
-        guesser_model_weights = curGuesser.state_dict()
-        torch.save(guesser_model_weights, params["weights_path"])
+        if type(curGuesser) == AgentGuesser:
+            guesser_model_weights = curGuesser.state_dict()
+            torch.save(guesser_model_weights, params["weights_path"])
 
     return score_plot, counter_plot
 
