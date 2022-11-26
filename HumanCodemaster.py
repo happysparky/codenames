@@ -20,11 +20,11 @@ class HumanCodemaster(Codemaster):
         return (hint, count)
 
     def postprocess(self, game):
-        return
+        pass
 
     def set_reward(self, num_own_guessed, num_opposing_guessed, num_neutral_guessed, num_danger_guessed, num_previously_guessed, game_ended):
-        return
+        return 0
 
     def train_short_memory(self, state, action, reward, next_state, done):
-        return
+        pass
         

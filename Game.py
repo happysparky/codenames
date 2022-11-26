@@ -9,6 +9,7 @@ import random
 import torch.optim as optim
 import argparse
 import os
+import torch
 DEVICE = 'cpu' # 'cuda' if torch.cuda.is_available() else 'cpu'
 ''' at some point go back and standardize upper camel case vs snake case'''
 
@@ -218,11 +219,18 @@ class Game:
     # Returns the indices of those words
     def get_guesses_from_tensor(self, guessTensor, count):
 
-        generated_guesses = []
-        # get the logits from the guessTensor for every word in the board
-        for i in range(len(self.board)):
-            generated_guesses.append((guessTensor[self.board[i]], i))
+        words_remaining_mask = self.red_words_remaining if self.turn == 0 else self.blue_words_remaining
 
+        # check to ensure count doesn't crash the function if it's > remaining words for the current team
+        words_remaining_count = self.red_words_remaining_count if self.turn == 0 else self.blue_words_remaining_count
+        if count > words_remaining_count:
+            count = words_remaining_count
+        
+        # # get the logits from the guessTensor for all remaining words
+        generated_guesses = []
+        for idx in np.nonzero(words_remaining_mask)[0]:
+            generated_guesses.append((guessTensor[idx], idx))
+        
         # sort the logits from highest to lowest 
         generated_guesses.sort(key=lambda x: x[0], reverse=True)
         # get the indices (words) in sorted order
