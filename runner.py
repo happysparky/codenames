@@ -260,6 +260,7 @@ def run(params, listOfWords, v2i, i2v):
                             # generate remaining number of guesses
                             guess = curGuesser(guesser_state_old_tensor)
                             guess = game.get_guesses_from_tensor(guess, 1)
+
                 else:
                     guess = curGuesser()
 
