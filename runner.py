@@ -63,12 +63,18 @@ def print_board(game, i2v):
         current_word = i2v[current_word_index]
         num_spaces = longest-len(current_word)
 
-        if game.red_words_remaining[current_word_index] == 1 or game.red_words_chosen[current_word_index] == 1: 
+        if game.red_words_remaining[current_word_index] == 1:
             print(bcolors.RED + current_word + bcolors.ENDC, end=end)
-        elif game.blue_words_remaining[current_word_index] == 1 or game.blue_words_chosen[current_word_index] == 1:
+        elif game.red_words_chosen[current_word_index] == 1: 
+            print(bcolors.MAGENTA + current_word + bcolors.ENDC, end=end)
+        elif game.blue_words_remaining[current_word_index] == 1:
             print(bcolors.BLUE + current_word + bcolors.ENDC, end=end)
-        elif game.neutral_words_remaining[current_word_index] == 1 or game.neutral_words_chosen[ current_word_index] == 1: 
+        elif game.blue_words_chosen[current_word_index] == 1:
+            print(bcolors.CYAN + current_word + bcolors.ENDC, end=end)
+        elif game.neutral_words_remaining[current_word_index] == 1:
             print(bcolors.WHITE + current_word + bcolors.ENDC, end=end)
+        elif game.neutral_words_chosen[ current_word_index] == 1: 
+            print(bcolors.YELLOW + current_word + bcolors.ENDC, end=end)
         elif game.danger_words_remaining[current_word_index]: 
             print(bcolors.BLACK + current_word + bcolors.ENDC, end=end)
 
@@ -98,9 +104,9 @@ def display(game, i2v):
 
 
     if game.turn == 0:
-        print(bcolors.RED + "Red's Turn" + bcolors.ENDC)
+        print("\n" + bcolors.RED + "Red's Turn" + bcolors.ENDC)
     else:
-        print(bcolors.BLUE + "Blue's Turn" + bcolors.ENDC)
+        print("\n" + bcolors.BLUE + "Blue's Turn" + bcolors.ENDC)
 
 # gets the hint and number of words the hint applies to. Ensures the hint and number of words the hint applies to is valid
 def get_humancodemaster_hint(human_codemaster, game):
@@ -223,6 +229,8 @@ def run(params, listOfWords, v2i, i2v):
 
             # perform new move and get new state
             count = game.process_hint(hint, count)
+
+            print("The hint given was '" + i2v[hint] + "' and it applies to " + str(count) + " words.")
             # get old state
 
             codemaster_state_new = game.get_codemaster_state()
@@ -266,7 +274,6 @@ def run(params, listOfWords, v2i, i2v):
                     guess = curGuesser()
 
                 
-                print("this is the current guess: " + i2v[guess[0]])
                 # update the game state
                 num_own_guessed, num_opposing_guessed, num_neutral_guessed, num_danger_guessed, num_previously_guessed = game.process_single_guess(guess)
                 accumulated_own_guessed += num_own_guessed
@@ -274,9 +281,6 @@ def run(params, listOfWords, v2i, i2v):
                 accumulated_neutral_guessed += num_neutral_guessed
                 accumulated_danger_guessed += num_danger_guessed
                 accumulated_previously_guessed += num_previously_guessed
-
-                if params['display']:
-                    display(game, i2v)
 
                 guesser_state_new = game.get_guesser_state()
 
@@ -296,7 +300,12 @@ def run(params, listOfWords, v2i, i2v):
 
                 # end this turn if failed to guess correctly or game ends
                 if num_own_guessed == 0 or game.end:
+                    print("Uh-oh! The word " + i2v[guess[0]] + " was incorrectly guessed!")
                     break
+                else:
+                    print("Good job! The word " + i2v[guess[0]] + " was correctly guessed!")
+                if params['display']:
+                    display(game, i2v)
 
             # guesser reward and weight updates
             ''' do we really have to reward the guesser again with accumulated stats? '''
@@ -340,7 +349,20 @@ def run(params, listOfWords, v2i, i2v):
             
             steps += 1
             
+        if game.end:
+            print("Game finished!")
+            print("Winner: ", end="")
 
+            if game.danger_words_remaining_count == 0:
+                if game.turn == 0:
+                    print("Blue Team")
+                else:
+                    print("Red Team")
+            elif game.red_words_remaining_count == 0:
+                    print("Red Team")
+            else:
+                print("Blue Team")
+                
         '''
         different batch size for codemaster and guesser?
         '''

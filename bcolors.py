@@ -5,6 +5,7 @@ class bcolors:
     GREEN = '\033[92m'
     YELLOW = '\033[93m'
     RED = '\033[91m'
+    MAGENTA = '\u001b[35m'
     WHITE = '\u001b[37m'
     BLACK = '\u001b[30m'
     ENDC = '\033[0m'
