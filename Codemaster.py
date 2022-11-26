@@ -78,6 +78,3 @@ class Codemaster(torch.nn.Module):
         tuple at the current timestep.
         """
         return
-
-    def postprocess(self, game):
-        return

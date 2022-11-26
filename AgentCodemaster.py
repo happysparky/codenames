@@ -159,6 +159,3 @@ class AgentCodemaster(Codemaster):
 
         loss.backward()
         self.optimizer.step()
-
-    def postprocess(self, game):
-        reward = self.set_reward(game.dnsaglnadsgf)
