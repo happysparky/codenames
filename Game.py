@@ -40,9 +40,10 @@ class Game:
         self.neutral_words_remaining = np.zeros(vocab_size)
         for i in range(2*per_team_count+1,len(wordList)-1):
             self.neutral_words_remaining[wordList[i]] = 1
+
         self.danger_words_remaining = np.zeros(vocab_size)
         self.danger_words_remaining[wordList[len(wordList)-1]] = 1
-
+        
         self.all_guesses = np.zeros(vocab_size)
         self.neutral_words_chosen = np.zeros(vocab_size)
         self.blue_words_chosen = np.zeros(vocab_size)
@@ -199,54 +200,52 @@ class Game:
 
         return state
 
-    # Create array of random guesses
+    # Guess a random word from the board
     # Performs iterative guessing from all words on the board, checking to make sure that the word hasn't been guessed
     # Also makes sure that not all words have been guessed
-    def generate_random_guesses(self, count):
+    def generate_random_guess(self):
+        possible_guesses = np.concatenate(
+            (
+                np.nonzero(self.red_words_remaining)[0],
+                np.nonzero(self.blue_words_remaining)[0],
+                np.nonzero(self.neutral_words_remaining)[0],
+                np.nonzero(self.danger_words_remaining)[0]
+            )
+        )
 
-        generated_guesses = []
-        guessed = 0
-        while len(generated_guesses) < count and guessed < len(self.board):
-            guess = random.randint(0, self.vocab_size-1)
-            if self.all_guesses[guess] == 0 and guess not in generated_guesses:
-                generated_guesses.append(guess)
-            guessed += 1
+        # randint is inclusive on both sides
+        guess = random.randint(0, len(possible_guesses)-1)
 
-        # return the maximum number of guesses possible for this team
-        return generated_guesses
+        return possible_guesses[guess]
 
-    # Determines the top |count| guesses based on the model's prediction and based on the available words
-    # Returns the indices of those words
-    def get_guesses_from_tensor(self, guessTensor, count):
+    # Determines the top guess based on the model's prediction and based on the available words
+    # Returns the index of the top word
+    def get_guess_from_tensor(self, guessTensor):
 
-        words_remaining_mask = self.red_words_remaining if self.turn == 0 else self.blue_words_remaining
-
-        # check to ensure count doesn't crash the function if it's > remaining words for the current team
-        words_remaining_count = self.red_words_remaining_count if self.turn == 0 else self.blue_words_remaining_count
-        if count > words_remaining_count:
-            count = words_remaining_count
-        
+        words_remaining = np.concatenate(
+            (
+                np.nonzero(self.red_words_remaining)[0],
+                np.nonzero(self.blue_words_remaining)[0],
+                np.nonzero(self.neutral_words_remaining)[0],
+                np.nonzero(self.danger_words_remaining)[0]
+            )
+        )        
         # # get the logits from the guessTensor for all remaining words
-        generated_guesses = []
-        for idx in np.nonzero(words_remaining_mask)[0]:
-            generated_guesses.append((guessTensor[idx], idx))
-        
-        # sort the logits from highest to lowest 
-        generated_guesses.sort(key=lambda x: x[0], reverse=True)
-        # get the indices (words) in sorted order
-        generated_guesses = [index for (value, index) in generated_guesses]
-        # get the top |count| words
-        generated_guesses = generated_guesses[:count]
-
-        return generated_guesses
+        largest_logit = -1
+        guess = -1
+        for idx in words_remaining:
+            if guessTensor[idx] > largest_logit:
+                largest_logit = guessTensor[idx]
+                guess = idx
+        return guess
         
     # Generates a random hint based on the vocabulary
     def generate_random_hint(self):
 
-        hint = random.randint(0, self.vocab_size)
+        hint = random.randint(0, self.vocab_size-1)
         # ensure hint isn't in list of words
         while hint in self.board:
-            hint = random.randint(0, self.vocab_size)
+            hint = random.randint(0, self.vocab_size-1)
 
         words_remaining = self.red_words_remaining_count if self.turn == 0 else self.blue_words_remaining_count
         num_words = random.choice(range(1, words_remaining+1))

@@ -259,7 +259,7 @@ def run(params, listOfWords, v2i, i2v):
                 # TODO: change implementation of how guesses are generated to take argmax instead of iterating through every 1
                 if type(curGuesser) != HumanGuesser:
                     if random.uniform(0, 1) < curGuesser.epsilon:
-                        guess = game.generate_random_guesses(1)
+                        guess = game.generate_random_guess()
                     else:
                         # predict action based on the old state
                         with torch.no_grad():
@@ -268,7 +268,7 @@ def run(params, listOfWords, v2i, i2v):
 
                             # generate remaining number of guesses
                             guess = curGuesser(guesser_state_old_tensor)
-                            guess = game.get_guesses_from_tensor(guess, 1)
+                            guess = game.get_guess_from_tensor(guess)
 
                 else:
                     guess = curGuesser()
@@ -299,11 +299,14 @@ def run(params, listOfWords, v2i, i2v):
                     curGuesser.remember(guesser_state_old_tensor, guess, guesser_reward, guesser_state_new_tensor, game.crash)
 
                 # end this turn if failed to guess correctly or game ends
-                if num_own_guessed == 0 or game.end:
-                    print("Uh-oh! The word " + i2v[guess[0]] + " was incorrectly guessed!")
+                if num_own_guessed == 0:
+                    print("Uh-oh! The word '" + i2v[guess] + "' was incorrectly guessed!")
                     break
                 else:
-                    print("Good job! The word " + i2v[guess[0]] + " was correctly guessed!")
+                    print("Good job! The word '" + i2v[guess] + "' was correctly guessed!")
+                    if game.end:
+                        break
+                    
                 if params['display']:
                     display(game, i2v)
 
