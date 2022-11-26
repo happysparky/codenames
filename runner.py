@@ -250,7 +250,7 @@ def run(params, listOfWords, v2i, i2v):
 
             codemaster_state_new = game.get_codemaster_state()
             guesser_state_old = game.get_guesser_state()
-            print("GUESSER STATE", guesser_state_old.shape, guesser_state_old)
+            # print("GUESSER STATE", guesser_state_old.shape, guesser_state_old)
 
             # --- GUESSER ---
             guess = ""

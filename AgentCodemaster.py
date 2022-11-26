@@ -138,9 +138,9 @@ class AgentCodemaster(Codemaster):
         
         # Create targets for both hint and count
         # Note: may want to validate that these look correct
-        print("target", target_f_hint, target_f_count, '\n')
-        print("hint argmax & hint value", torch.argmax(action), torch.max(action), '\n')
-        print("target_f", target_f_hint[0], target_f_count[0], '\n')
+        # print("target", target_f_hint, target_f_count, '\n')
+        # print("hint argmax & hint value", torch.argmax(action), torch.max(action), '\n')
+        # print("target_f", target_f_hint[0], target_f_count[0], '\n')
 
         target_f_hint[0][torch.argmax(action)] = target
         target_f_hint.detach()

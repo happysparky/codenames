@@ -57,7 +57,7 @@ class AgentGuesser(Guesser):
         x = F.relu(self.f2(x))
         x = F.relu(self.f3(x))
         x = F.softmax(self.f4(x), dim=-1)
-        print("GUESSER OUTPUT", x)
+        # print("GUESSER OUTPUT", x)
         return x
 
     def set_reward(self, num_own_guessed, num_opposing_guessed, num_neutral_guessed, num_danger_guessed, num_prev_guessed, game_ended):
