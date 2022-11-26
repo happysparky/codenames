@@ -197,14 +197,14 @@ def run(params, listOfWords, v2i, i2v):
                 display(game, i2v)
 
             if not params['train']:
-                ''' check into epsilon because it's initialized upon object creation'''
                 curCodemaster.epsilon = 0.01
                 curGuesser.epsilon = 0.01
             else:
                 # agent.epsilon is set to give randomness to actions
+                # over the course of games, it will become smaller and smaller
 
-                curCodemaster.epsilon = 1 - (counter_games * params['epsilon_decay_linear'])
-                curGuesser.epsilon = 1 - (counter_games * params['epsilon_decay_linear'])
+                curCodemaster.epsilon = 0.3 - (counter_games * params['epsilon_decay_linear'])
+                curGuesser.epsilon = 0.3 - (counter_games * params['epsilon_decay_linear'])
 
             # get old state
             codemaster_state_old = game.get_codemaster_state()
@@ -219,17 +219,24 @@ def run(params, listOfWords, v2i, i2v):
             '''
 
             if type(curCodemaster) != HumanCodemaster:
-                if random.uniform(0, 1) < curCodemaster.epsilon:
+                randVal = random.uniform(0, 1)
+                if randVal < curCodemaster.epsilon:
                     hint, count = game.generate_random_hint()
                 else:
-                # predict action based on the old state
+                    # predict action based on the old state
                     # TODO: should be able to add in a "bounding factor" for telling the model a min and max for the count output
                     with torch.no_grad():
-                        print(codemaster_state_old)
-                        codemaster_state_old_tenser = torch.from_numpy(codemaster_state_old).to(DEVICE)
-                        prediction = curCodemaster(codemaster_state_old_tenser)
+                        codemaster_state_old_tensor = torch.from_numpy(codemaster_state_old).to(DEVICE)
+                        codemaster_state_old_tensor = torch.flatten(codemaster_state_old_tensor)
+
+                        hint_tensor, count_tensor = curCodemaster(codemaster_state_old_tensor)
                         # TODO: generate word/number pair based on prediction
-                        hint, count = np.eye(3)[np.argmax(prediction.detach().cpu().numpy()[0])]
+                        hint = torch.argmax(hint_tensor).item()
+                        count = torch.argmax(count_tensor).item()
+                        if count > game.red_words_remaining_count and game.turn == 0:
+                            count = game.red_words_remaining_count
+                        elif count > game.blue_words_remaining_count and game.turn == 1:
+                            count = game.blue_words_remaining_count
             else:
                 hint, count = curCodemaster()
                 if hint in v2i:
@@ -243,6 +250,7 @@ def run(params, listOfWords, v2i, i2v):
 
             codemaster_state_new = game.get_codemaster_state()
             guesser_state_old = game.get_guesser_state()
+            print("GUESSER STATE", guesser_state_old.shape, guesser_state_old)
 
             # --- GUESSER ---
             guess = ""
@@ -258,9 +266,11 @@ def run(params, listOfWords, v2i, i2v):
                 else:
                     # predict action based on the old state
                     with torch.no_grad():
-                        guesser_state_old_tensor = torch.tensor(guesser_state_old.reshape((1, 11)), dtype=torch.double).to(DEVICE)
+                        guesser_state_old_tensor = torch.from_numpy(guesser_state_old).to(DEVICE)
+                        guesser_state_old_tensor = torch.flatten(guesser_state_old_tensor)
+
                         # generate remaining number of guesses
-                        guesses = curGuesser(guesser_state_old_tensor, hint, remaining_count)
+                        guesses = curGuesser(guesser_state_old_tensor)
                         guesses = game.get_guesses_from_tensor(guesses, count)
             else:
                 guesses = [curGuesser() for i in range(count)]
