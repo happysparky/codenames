@@ -56,7 +56,7 @@ class Game:
         # shuffle wordlist to create board 
         random.shuffle(wordList) 
         self.board = wordList
-        # 0 represents blue's turn, 1 is red's turn
+        # 0 represents red's turn, 1 is blue's turn
         self.turn = 0
         # Score represents how many turns it takes to complete a game
         self.score = 0

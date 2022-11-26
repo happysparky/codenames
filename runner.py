@@ -169,7 +169,7 @@ def run(params, listOfWords, v2i, i2v):
         look into what steps is used for
         '''
         steps = 0       # steps since the last positive reward
-        while (not game.crash) and (not game.end):
+        while (not game.crash) and (not game.end) and steps < 200:
             # if logging, display board
             if params['display']:
                 display(game, i2v)
@@ -294,8 +294,14 @@ def run(params, listOfWords, v2i, i2v):
                     break
 
             # guesser reward and weight updates
+            ''' do we really have to reward the guesser again with accumulated stats? '''
             guesser_reward = curGuesser.set_reward(accumulated_own_guessed, accumulated_opposing_guessed, accumulated_neutral_guessed, accumulated_danger_guessed, accumulated_previously_guessed, game.end)
             codemaster_reward = curCodemaster.set_reward(accumulated_own_guessed, accumulated_opposing_guessed, accumulated_neutral_guessed, accumulated_danger_guessed, accumulated_previously_guessed, game.end)
+            
+            # if made good hints and guesses, steps is set to 0
+            if codemaster_reward > 0 and guesser_reward > 0:
+                steps = 0
+                
             
             if params['train']:
                 vocab_size = len(i2v)
@@ -326,6 +332,8 @@ def run(params, listOfWords, v2i, i2v):
                     game.turn = 0
                     curCodemaster = params["codemasterRed"]
                     curGuesser = params["guesserRed"]
+            
+            steps += 1
 
         '''
         different batch size for codemaster and guesser?
