@@ -6,14 +6,18 @@ class HumanCodemaster(Codemaster):
         return
 
     def forward(self):
+
         hint = input("Enter your hint: ")
-        numWords = input("Enter the number of words this applies to: ")
+
+        count = "a"
+        while not count.isnumeric():
+            count = input("Enter the number of words this applies to: ")
         '''
         add checks to ensure input is fine
         '''
-        numWords = int(numWords)
+        count = int(count)
         hint = hint.lower()
-        return (hint, numWords)
+        return (hint, count)
 
     def postprocess(self, game):
         return
