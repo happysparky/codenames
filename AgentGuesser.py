@@ -116,7 +116,8 @@ class AgentGuesser(Guesser):
             self.optimizer.zero_grad()
             loss = F.mse_loss(output, target_f)
             loss.backward()
-            self.optimizer.step()            
+            self.optimizer.step()     
+            return loss       
 
     def train_short_memory(self, state, action, reward, next_state, done):
         """
@@ -144,3 +145,4 @@ class AgentGuesser(Guesser):
         loss = F.mse_loss(output, target_f)
         loss.backward()
         self.optimizer.step()
+        return loss

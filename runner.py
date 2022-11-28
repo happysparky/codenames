@@ -30,7 +30,7 @@ def define_parameters():
     params['first_layer_size'] = 200    # neurons in the first layer
     params['second_layer_size'] = 20   # neurons in the second layer
     params['third_layer_size'] = 50    # neurons in the third layer
-    params['episodes'] = 1
+    params['episodes'] = 10
     # params['episodes'] = 250          
     params['memory_size'] = 2500
     params['batch_size'] = 1000
@@ -163,17 +163,19 @@ def run(params, listOfWords, v2i, i2v):
     """
     Run the session, based on the parameters previously set.   
     """
-       
-    counter_games = 0
     score_plot = []
-    counter_plot = []
+    winner_plot = []
+    codemaster_tsm = []
+    guesser_tsm = []
+    codemaster_rn = []
+    guesser_rn = []
 
     # play a certain number of games
-    while counter_games < params['episodes']:
+    for counter in range(params['episodes']):
         # Initialize game state
         gameWordbank = random.sample(listOfWords, k=25)
         gameIndexbank = wordsToIndices(gameWordbank, v2i)
-        game = Game(gameIndexbank, 8, len(v2i))
+        game = Game(gameIndexbank, 1, len(v2i))
 
         curCodemaster = params["codemasterRed"]
         curGuesser = params["guesserRed"]
@@ -198,8 +200,8 @@ def run(params, listOfWords, v2i, i2v):
                 # agent.epsilon is set to give randomness to actions
                 # over the course of games, it will become smaller and smaller
 
-                curCodemaster.epsilon = 0.3 - (counter_games * params['epsilon_decay_linear'])
-                curGuesser.epsilon = 0.3 - (counter_games * params['epsilon_decay_linear'])
+                curCodemaster.epsilon = 0.3 - (counter * params['epsilon_decay_linear'])
+                curGuesser.epsilon = 0.3 - (counter * params['epsilon_decay_linear'])
 
             # get old state
             codemaster_state_old = game.get_codemaster_state()
@@ -304,9 +306,12 @@ def run(params, listOfWords, v2i, i2v):
                     guesser_state_new_tensor = torch.from_numpy(guesser_state_new)
 
                     # train short memory base on the new action and state
-                    curGuesser.train_short_memory(guesser_state_old_tensor, guess, guesser_reward, guesser_state_new_tensor, game.crash)
+                    guesser_loss = curGuesser.train_short_memory(guesser_state_old_tensor, guess, guesser_reward, guesser_state_new_tensor, game.crash)
                     # store the new data into a long term memory
                     curGuesser.remember(guesser_state_old_tensor, guess, guesser_reward, guesser_state_new_tensor, game.crash)
+
+                    if type(curGuesser) == AgentGuesser:
+                            guesser_tsm.append(guesser_loss.item())
 
                 # end this turn if failed to guess correctly or game ends
                 if num_own_guessed == 0:
@@ -353,11 +358,24 @@ def run(params, listOfWords, v2i, i2v):
                 hint_tensorguesser_state_old_tensor = torch.from_numpy(guesser_state_old)
                 guesser_state_new_tensor = torch.from_numpy(guesser_state_new)
                 
-                curCodemaster.train_short_memory(codemaster_state_old_tensor, hint_tensor, codemaster_reward, codemaster_state_new_tensor, game.crash)
+                codemaster_loss = curCodemaster.train_short_memory(codemaster_state_old_tensor, hint_tensor, codemaster_reward, codemaster_state_new_tensor, game.crash)
                 curCodemaster.remember(codemaster_state_old_tensor, hint_tensor, codemaster_reward, codemaster_state_new_tensor, game.crash)
                 
-                curGuesser.train_short_memory(hint_tensorguesser_state_old_tensor, guess, guesser_reward, guesser_state_new_tensor, game.crash)
+                guesser_loss = curGuesser.train_short_memory(hint_tensorguesser_state_old_tensor, guess, guesser_reward, guesser_state_new_tensor, game.crash)
                 curGuesser.remember(hint_tensorguesser_state_old_tensor, guess, guesser_reward, guesser_state_new_tensor, game.crash)
+
+                '''we could probably save some space if we moved the above code into the if statements so we don't have to store the states and stuff.
+                I know it detracts from the abstract interface for a codemaster/guesser by differentiating between agent vs human, but we already break
+                that interface in several other places already'''
+                if type(curCodemaster) == AgentCodemaster:
+                    codemaster_tsm.append(codemaster_loss.item())
+
+
+                if type(curGuesser) == AgentGuesser:
+                    guesser_tsm.append(guesser_loss.item())
+   
+
+
             
             # if the game hasn't ended, change turns
             if not game.end:
@@ -372,33 +390,42 @@ def run(params, listOfWords, v2i, i2v):
             
             steps += 1
             
+
+        if game.danger_words_remaining_count == 0:
+            if game.turn == 0:
+                winner = "blue"
+            else:
+                winner = "red"
+        elif game.red_words_remaining_count == 0:
+                winner = "red"
+        else:
+            winner = "blue"
+
         if params["no_print"] == False:                
             print("Game finished!")
-            print("Winner: ", end="")
+            print("Winner: ", winner)
 
-            if game.danger_words_remaining_count == 0:
-                if game.turn == 0:
-                    print("Blue Team")
-                else:
-                    print("Red Team")
-            elif game.red_words_remaining_count == 0:
-                    print("Red Team")
-            else:
-                print("Blue Team")
                 
         '''
         different batch size for codemaster and guesser?
         '''
         if params['train']:
-            curCodemaster.replay_new(curCodemaster.memory, params['batch_size'])
-            curGuesser.replay_new(curGuesser.memory, params['batch_size'])
+
+            codemaster_loss = curCodemaster.replay_new(curCodemaster.memory, params['batch_size'])
+            guesser_loss = curGuesser.replay_new(curGuesser.memory, params['batch_size'])
+
+            if type(curCodemaster) == AgentCodemaster:
+                codemaster_rn.append(codemaster_loss.item())
+            if type(curGuesser) == AgentGuesser:
+                guesser_rn.append(guesser_loss.item())
+
 
         # TODO: should be calculating some sort of accuracy
-        counter_games += 1
-        if params["no_print"] == False:
-            print(f'Game {counter_games}      Score: {game.score}')
         score_plot.append(game.score)
-        counter_plot.append(counter_games)
+        winner_plot.append(winner)
+        if params["no_print"] == False:
+            print(f'Game {len(score_plot)}      Score: {game.score}      Winner: {winner}')
+
 
     if params['train']:
     
@@ -412,7 +439,55 @@ def run(params, listOfWords, v2i, i2v):
             torch.save(params["guesserBlue"].state_dict(), params["blue_guesser_weights"])
 
 
-    return score_plot, counter_plot
+    return score_plot, winner_plot, codemaster_tsm, guesser_tsm, codemaster_rn, guesser_rn
+
+
+def store_metrics(output_dir, score_plot, winner_plot, codemaster_tsm, guesser_tsm, codemaster_rn, guesser_rn):
+
+    with open(params["output_dir"]+"codemaster_tsm_loss.txt", "w") as f_out:
+        for loss in codemaster_tsm:
+            f_out.write(str(loss) + "\n")
+
+    with open(params["output_dir"]+"guesser_tsm_loss.txt", "w") as f_out:
+        for loss in guesser_tsm:
+            f_out.write(str(loss) + "\n")
+        
+    with open(params["output_dir"]+"codemaster_rn_loss.txt", "w") as f_out:
+        for loss in codemaster_rn:
+            f_out.write(str(loss) + "\n")
+
+    with open(params["output_dir"]+"guesser_rn_loss.txt", "w") as f_out:
+        for loss in guesser_rn:
+            f_out.write(str(loss) + "\n")
+
+
+    plt.scatter(range(1, len(score_plot)+1), score_plot, c=winner_plot)
+    plt.xlabel("Num games")
+    plt.ylabel("Number of turns to win")
+    plt.savefig(output_dir+"model_performance.png")
+    plt.clf()
+
+    plt.plot(codemaster_tsm)
+    plt.title("Codemaster Train Short Memory Loss")
+    plt.savefig(params["output_dir"]+"codemaster_tsm_loss.png")
+    plt.clf()
+
+    plt.plot(guesser_tsm)
+    plt.title("Guesser Train Short Memory Loss")
+    plt.savefig(params["output_dir"]+"guesser_tsm_loss.png")
+    plt.clf()
+
+    plt.plot(codemaster_rn)
+    plt.title("Codemaster Replay New Loss")
+    plt.savefig(params["output_dir"]+"codemaster_rn_loss.png")
+    plt.clf()
+
+    plt.plot(codemaster_rn)
+    plt.title("Guesser Replay New Loss")
+    plt.savefig(params["output_dir"]+"guesser_rn_loss.png")
+    plt.clf()
+
+
 
 # type = 0 is codemaster, type = 1 is guesser
 def initialize_player(player, params, i2v, team, type):
@@ -452,14 +527,17 @@ if __name__ == '__main__':
     parser.add_argument("--debug_mode", help="include debug print statements", action='store_true')
     parser.add_argument("--no_display", help="Supress board display", action='store_true')
     parser.add_argument("--no_print", help="Suppress all printing, including display", action='store_true')
-    parser.add_argument("--game_name", help="Name of game in log", default="default")
     parser.add_argument("--test", help="load in weights and test the model playing an actual game", action="store_true")
+
+    parser.add_argument("--game_name", help="Name of game in log", default="default")
+    parser.add_argument("--output_dir", help="where output metrics are stored", default="metrics/")
 
     args = parser.parse_args()
 
     params["debug_mode"] = args.debug_mode
     params["no_display"] = args.no_display
     params["no_print"] = args.no_print
+    params["output_dir"] = args.output_dir
 
     if params["no_print"] == False:
         print("Args", args)
@@ -489,8 +567,7 @@ if __name__ == '__main__':
     params["guesserBlue"] = initialize_player(args.guesserBlue, params, i2v, 1, 1)
 
 
-    score_plot, counter_plot = run(params, listOfWords, v2i, i2v)
+    score_plot, winner_plot, codemaster_tsm, guesser_tsm, codemaster_rn, guesser_rn = run(params, listOfWords, v2i, i2v)
     
-    if params["no_print"] == False:
-        print(score_plot)
-        print(counter_plot)
+    store_metrics(params["output_dir"], score_plot, winner_plot, codemaster_tsm, guesser_tsm, codemaster_rn, guesser_rn)
+

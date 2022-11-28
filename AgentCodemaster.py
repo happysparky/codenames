@@ -124,7 +124,8 @@ class AgentCodemaster(Codemaster):
             loss += F.mse_loss(countOutput, target_f_count)
 
             loss.backward()
-            self.optimizer.step()     
+            self.optimizer.step()
+            return loss     
 
 
     def train_short_memory(self, state, action, reward, next_state, done):
@@ -169,3 +170,4 @@ class AgentCodemaster(Codemaster):
 
         loss.backward()
         self.optimizer.step()
+        return loss

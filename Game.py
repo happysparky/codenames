@@ -1,15 +1,5 @@
 import numpy as np
-import matplotlib.pyplot as plt
-from HumanCodemaster import HumanCodemaster
-from Codemaster import Codemaster
-from HumanGuesser import HumanGuesser
-from Guesser import Guesser
-from random import randint
 import random
-import torch.optim as optim
-import argparse
-import os
-import torch
 DEVICE = 'cpu' # 'cuda' if torch.cuda.is_available() else 'cpu'
 ''' at some point go back and standardize upper camel case vs snake case'''
 
