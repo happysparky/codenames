@@ -74,13 +74,9 @@ class AgentCodemaster(Codemaster):
             -5 when Player guesses neutral word
         """
 
-        # TODO: add "don't-suggest-a-previous-hint" penalty
-        # TODO: don't give more a clue that applies to more words than there are left
-        # TODO: add "don't suggest a number greater than the words remaining"
         # TODO: add a big reward for winning the game
-        self.reward = 0
 
-        self.reward = 10*num_own_guessed - 10*num_opposing_guessed - 5*num_neutral_guessed - 100*num_danger_guessed
+        self.reward = 10*num_own_guessed - 10*num_opposing_guessed - 5*num_neutral_guessed 
         return self.reward
 
     def remember(self, state, action, reward, next_state, done):

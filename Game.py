@@ -54,9 +54,6 @@ class Game:
         self.score = 0
         self.end = False
 
-        ''' Set this to true somewhere'''
-        self.crash = False
-
     '''
     Not sure what the codemaster's reward would be since it's dependent on how 
     many words are able to be guessed at the next step. 

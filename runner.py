@@ -30,7 +30,7 @@ def define_parameters():
     params['first_layer_size'] = 200    # neurons in the first layer
     params['second_layer_size'] = 20   # neurons in the second layer
     params['third_layer_size'] = 50    # neurons in the third layer
-    params['episodes'] = 10
+    params['episodes'] = 1
     # params['episodes'] = 250          
     params['memory_size'] = 2500
     params['batch_size'] = 1000
@@ -182,9 +182,10 @@ def run(params, listOfWords, v2i, i2v):
         
         '''
         look into what steps is used for
+        i re-implemented it but a game could end via steps instead of ending normally
         '''
         steps = 0       # steps since the last positive reward
-        while (not game.crash) and (not game.end) and steps < 200:
+        while not game.end and steps < 200:
             
             if params["no_print"] == False:
                 if params["no_display"] == False:
@@ -220,7 +221,6 @@ def run(params, listOfWords, v2i, i2v):
                     hint, count = game.generate_random_hint()
                 else:
                     # predict action based on the old state
-                    # TODO: should be able to add in a "bounding factor" for telling the model a min and max for the count output
                     with torch.no_grad():
                         codemaster_state_old_tensor = torch.from_numpy(codemaster_state_old).to(DEVICE)
                         codemaster_state_old_tensor = torch.flatten(codemaster_state_old_tensor)
@@ -306,9 +306,9 @@ def run(params, listOfWords, v2i, i2v):
                     guesser_state_new_tensor = torch.from_numpy(guesser_state_new)
 
                     # train short memory base on the new action and state
-                    guesser_loss = curGuesser.train_short_memory(guesser_state_old_tensor, guess, guesser_reward, guesser_state_new_tensor, game.crash)
+                    guesser_loss = curGuesser.train_short_memory(guesser_state_old_tensor, guess, guesser_reward, guesser_state_new_tensor, game.end)
                     # store the new data into a long term memory
-                    curGuesser.remember(guesser_state_old_tensor, guess, guesser_reward, guesser_state_new_tensor, game.crash)
+                    curGuesser.remember(guesser_state_old_tensor, guess, guesser_reward, guesser_state_new_tensor, game.end)
 
                     if type(curGuesser) == AgentGuesser:
                             guesser_tsm.append(guesser_loss.item())
@@ -358,11 +358,11 @@ def run(params, listOfWords, v2i, i2v):
                 hint_tensorguesser_state_old_tensor = torch.from_numpy(guesser_state_old)
                 guesser_state_new_tensor = torch.from_numpy(guesser_state_new)
                 
-                codemaster_loss = curCodemaster.train_short_memory(codemaster_state_old_tensor, hint_tensor, codemaster_reward, codemaster_state_new_tensor, game.crash)
-                curCodemaster.remember(codemaster_state_old_tensor, hint_tensor, codemaster_reward, codemaster_state_new_tensor, game.crash)
+                codemaster_loss = curCodemaster.train_short_memory(codemaster_state_old_tensor, hint_tensor, codemaster_reward, codemaster_state_new_tensor, game.end)
+                curCodemaster.remember(codemaster_state_old_tensor, hint_tensor, codemaster_reward, codemaster_state_new_tensor, game.end)
                 
-                guesser_loss = curGuesser.train_short_memory(hint_tensorguesser_state_old_tensor, guess, guesser_reward, guesser_state_new_tensor, game.crash)
-                curGuesser.remember(hint_tensorguesser_state_old_tensor, guess, guesser_reward, guesser_state_new_tensor, game.crash)
+                guesser_loss = curGuesser.train_short_memory(hint_tensorguesser_state_old_tensor, guess, guesser_reward, guesser_state_new_tensor, game.end)
+                curGuesser.remember(hint_tensorguesser_state_old_tensor, guess, guesser_reward, guesser_state_new_tensor, game.end)
 
                 '''we could probably save some space if we moved the above code into the if statements so we don't have to store the states and stuff.
                 I know it detracts from the abstract interface for a codemaster/guesser by differentiating between agent vs human, but we already break
@@ -569,5 +569,5 @@ if __name__ == '__main__':
 
     score_plot, winner_plot, codemaster_tsm, guesser_tsm, codemaster_rn, guesser_rn = run(params, listOfWords, v2i, i2v)
     
-    store_metrics(params["output_dir"], score_plot, winner_plot, codemaster_tsm, guesser_tsm, codemaster_rn, guesser_rn)
+    # store_metrics(params["output_dir"], score_plot, winner_plot, codemaster_tsm, guesser_tsm, codemaster_rn, guesser_rn)
 
