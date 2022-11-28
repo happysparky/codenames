@@ -124,19 +124,19 @@ class Game:
                 else:
                     num_opposing_guessed += 1
 
-            elif guess in self.neutral_words_remaining:
+            elif self.neutral_words_remaining[guess] == 1:
                 self.neutral_words_remaining[guess] = 0
                 self.neutral_words_chosen[guess] = 1
 
                 num_neutral_guessed += 1
 
             elif self.danger_words_remaining[guess] == 1:
-                self.end = True
                 self.danger_words_remaining[guess] = 0
                 self.danger_words_remaining_count -= 1
                 num_danger_guessed += 1
+                self.end = True
 
-            if self.blue_words_remaining_count == 0 or self.red_words_remaining_count == 0 or self.danger_words_remaining_count == 0:
+            if self.blue_words_remaining_count == 0 or self.red_words_remaining_count == 0:
                 self.end = True
 
         return num_own_guessed, num_opposing_guessed, num_neutral_guessed, num_danger_guessed, num_previously_guessed

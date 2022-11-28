@@ -36,9 +36,9 @@ class AgentGuesser(Guesser):
         self.third_layer = params['third_layer_size']
 
         self.memory = collections.deque(maxlen=params['memory_size'])
-        if team == 'red':
+        if team == 0:
             self.weights = params['red_guesser_weights']
-        elif team == 'blue':
+        elif team == 1:
             self.weights = params['blue_guesser_weights']
         self.load_weights = params['load_weights']
         self.optimizer = None

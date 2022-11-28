@@ -15,10 +15,6 @@ DEVICE = 'cpu' # 'cuda' if torch.cuda.is_available() else 'cpu'
 
 MAX_NUMBER_OF_APPLICABLE_WORDS = 9
 
-'''
-can probably rename this class to AgentCodemaster or something to follow same pattern as humanCodemaster
-'''
-
 class AgentCodemaster(Codemaster):
     def __init__(self, params, i2v, team):
         super().__init__()
@@ -38,9 +34,9 @@ class AgentCodemaster(Codemaster):
         self.second_layer = params['second_layer_size']
         self.third_layer = params['third_layer_size']
         self.memory = collections.deque(maxlen=params['memory_size'])
-        if team == 'red':
+        if team == 0:
             self.weights = params['red_codemaster_weights']
-        elif team == 'blue':
+        elif team == 1:
             self.weights = params['blue_codemaster_weights']
         self.load_weights = params['load_weights']
         self.optimizer = None
@@ -53,7 +49,6 @@ class AgentCodemaster(Codemaster):
         self.f3 = nn.Linear(self.second_layer, self.third_layer)
         self.hintLin = nn.Linear(self.third_layer, len(self.i2v))
         self.countLin = nn.Linear(self.third_layer, MAX_NUMBER_OF_APPLICABLE_WORDS)
-        # weights
         if self.load_weights:
             self.model = self.load_state_dict(torch.load(self.weights))
             print("weights loaded")
@@ -67,6 +62,7 @@ class AgentCodemaster(Codemaster):
         return hintTensor, countTensor
 
     def set_reward(self, num_own_guessed, num_opposing_guessed, num_neutral_guessed, num_danger_guessed, num_previously_guessed, game_ended):
+        '''why do we store the reward instead of just returning it?'''
         ''' I think the danger word penality needs to increase. Max an agent can get is +80 or +90 
         if they guessed all 8 or 9 words in one go. Guessing the danger word should outweigh up to one step below'''
         """
@@ -82,8 +78,9 @@ class AgentCodemaster(Codemaster):
         # TODO: don't give more a clue that applies to more words than there are left
         # TODO: add "don't suggest a number greater than the words remaining"
         # TODO: add a big reward for winning the game
+        self.reward = 0
 
-        self.reward = 10*num_own_guessed - 10*num_opposing_guessed - 5*num_neutral_guessed - 50*num_danger_guessed
+        self.reward = 10*num_own_guessed - 10*num_opposing_guessed - 5*num_neutral_guessed - 100*num_danger_guessed
         return self.reward
 
     def remember(self, state, action, reward, next_state, done):
