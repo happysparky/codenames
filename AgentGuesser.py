@@ -64,6 +64,10 @@ class AgentGuesser(Guesser):
         # print(x.size())
         return x
 
+    '''
+    NOTE: later, we will try to improve this reward policy. One strategy would be to pass in the two teams' remaining word count. 
+    This difference (for example) should motivate a "trailing" team to be riskier. Also add a huge reward for winning the game. 
+    '''
     def set_reward(self, num_own_guessed, num_opposing_guessed, num_neutral_guessed, num_danger_guessed, num_prev_guessed, game_ended):
         """
         Return the reward.
@@ -75,10 +79,7 @@ class AgentGuesser(Guesser):
             -100 when Player guesses a previously guessed word
         """
 
-        '''
-        NOTE: later, we will try to improve this reward policy. One strategy would be to pass in the two teams' remaining word count. 
-        This difference (for example) should motivate a "trailing" team to be riskier. Also add a huge reward for winning the game. 
-        '''
+
         
         self.reward = 10*num_own_guessed - 10*num_opposing_guessed - 5*num_neutral_guessed - 50*num_danger_guessed - 100*num_prev_guessed
         return self.reward

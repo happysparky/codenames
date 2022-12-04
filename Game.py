@@ -43,6 +43,7 @@ class Game:
 
         self.red_words_remaining_count = per_team_count+1
         self.blue_words_remaining_count = per_team_count
+        self.neutral_words_remaining_count = len(wordList)-2*per_team_count-2
         self.danger_words_remaining_count = 1
 
         # shuffle wordlist to create board 
@@ -113,6 +114,7 @@ class Game:
 
             elif self.neutral_words_remaining[guess] == 1:
                 self.neutral_words_remaining[guess] = 0
+                self.neutral_words_remaining_count -= 1
                 self.neutral_words_chosen[guess] = 1
 
                 num_neutral_guessed += 1

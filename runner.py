@@ -169,6 +169,10 @@ def run(params, listOfWords, v2i, i2v):
     guesser_tsm = []
     codemaster_rn = []
     guesser_rn = []
+    count_given = []
+    proportion_hintWords_guessed = []
+    accuracy_guessed = []
+    baseline_accuracy = []
 
     # play a certain number of games
     for counter in range(params['episodes']):
@@ -210,11 +214,6 @@ def run(params, listOfWords, v2i, i2v):
             # --- CODEMASTER ---
             # This should output 1 single word, w, and 1 integer, k
             # perform random actions based on agent.epsilon, or choose the action
-            '''
-            I used num_words before so I shouldn't be talking but we really need to come up with a more descriptive name
-            than 'count'
-            '''
-
             if type(curCodemaster) != HumanCodemaster:
                 randVal = random.uniform(0, 1)
                 if randVal < curCodemaster.epsilon:
@@ -241,13 +240,21 @@ def run(params, listOfWords, v2i, i2v):
 
             # perform new move and get new state
             count = game.process_hint(hint, count)
+            count_given.append(count)
 
             if params["no_print"] == False:
                 print("The hint given was '" + i2v[hint] + "' and it applies to " + str(count) + " words.")
 
             # get old state
             codemaster_state_new = game.get_codemaster_state()
-            # print("GUESSER STATE", guesser_state_old.shape, guesser_state_old)
+
+            # keep track of the change of picking a correct word
+            # this forms a baseline for average 
+            total_remaining = (game.blue_words_remaining_count + game.red_words_remaining_count + game.neutral_words_remaining_count + game.danger_words_remaining_count)
+            if game.turn == 0:
+                baseline_accuracy.append(game.blue_words_remaining_count / total_remaining)
+            else:
+                baseline_accuracy.append(game.red_words_remaining_count / total_remaining)
 
             # --- GUESSER ---
 
@@ -261,7 +268,6 @@ def run(params, listOfWords, v2i, i2v):
 
             # can guess an extra word if all previous guesses for a hint are correct
             max_num_guesses = count + 1
-
 
             for idx in range(max_num_guesses):
                 guesser_state_old = game.get_guesser_state()
@@ -339,6 +345,8 @@ def run(params, listOfWords, v2i, i2v):
             ''' do we really have to reward the guesser again with accumulated stats? '''
             guesser_reward = curGuesser.set_reward(accumulated_own_guessed, accumulated_opposing_guessed, accumulated_neutral_guessed, accumulated_danger_guessed, accumulated_previously_guessed, game.end)
             codemaster_reward = curCodemaster.set_reward(accumulated_own_guessed, accumulated_opposing_guessed, accumulated_neutral_guessed, accumulated_danger_guessed, accumulated_previously_guessed, game.end)
+            proportion_hintWords_guessed.append(accumulated_own_guessed/count) if count > 0 else proportion_hintWords_guessed.append(0)
+            accuracy_guessed.append(accumulated_own_guessed/total_remaining)
             
             # if made good hints and guesses, steps is set to 0
             if codemaster_reward > 0 and guesser_reward > 0:
@@ -439,10 +447,10 @@ def run(params, listOfWords, v2i, i2v):
             torch.save(params["guesserBlue"].state_dict(), params["blue_guesser_weights"])
 
 
-    return score_plot, winner_plot, codemaster_tsm, guesser_tsm, codemaster_rn, guesser_rn
+    return score_plot, winner_plot, codemaster_tsm, guesser_tsm, codemaster_rn, guesser_rn, count_given, proportion_hintWords_guessed, accuracy_guessed, baseline_accuracy
 
 
-def store_metrics(output_dir, score_plot, winner_plot, codemaster_tsm, guesser_tsm, codemaster_rn, guesser_rn):
+def store_metrics(output_dir, score_plot, winner_plot, codemaster_tsm, guesser_tsm, codemaster_rn, guesser_rn, count_given, proportion_hintWords_guessed, accuracy_guessed, baseline_accuracy):
 
     with open(params["output_dir"]+"codemaster_tsm_loss.txt", "w") as f_out:
         for loss in codemaster_tsm:
@@ -460,6 +468,23 @@ def store_metrics(output_dir, score_plot, winner_plot, codemaster_tsm, guesser_t
         for loss in guesser_rn:
             f_out.write(str(loss) + "\n")
 
+    with open(params["output_dir"]+"count.txt", "w") as f_out:
+        for count in count_given:
+            f_out.write(str(count) + "\n")
+
+    with open(params["output_dir"]+"proportion_hint_guessed.txt", "w") as f_out:
+        for prop in proportion_hintWords_guessed:
+            f_out.write(str(prop) + "\n")
+
+    with open(params["output_dir"]+"accuracy_guessed.txt", "w") as f_out:
+        for acc in accuracy_guessed:
+            f_out.write(str(acc) + "\n")
+
+    with open(params["output_dir"]+"baseline_accuracy.txt", "w") as f_out:
+        f_out.write("Baseline Accuracy: " + str(sum(baseline_accuracy)/len(baseline_accuracy)) + "\n")
+        f_out.write("This is the accuracy of the guesser if they guess randomly." + "\n\n\n\n")
+        for acc in baseline_accuracy:
+            f_out.write(str(acc) + "\n")
 
     plt.scatter(range(1, len(score_plot)+1), score_plot, c=winner_plot)
     plt.xlabel("Num games")
@@ -485,6 +510,21 @@ def store_metrics(output_dir, score_plot, winner_plot, codemaster_tsm, guesser_t
     plt.plot(codemaster_rn)
     plt.title("Guesser Replay New Loss")
     plt.savefig(params["output_dir"]+"guesser_rn_loss.png")
+    plt.clf()
+
+    plt.plot(count_given)
+    plt.title("Words Represented by Codemaster's Hints")
+    plt.savefig(params["output_dir"]+"count.png")
+    plt.clf()
+
+    plt.plot(proportion_hintWords_guessed)
+    plt.title("Accuracy of Codemaster Based on Hint Counts")
+    plt.savefig(params["output_dir"]+"proportion_hint_guessed.png")
+    plt.clf()
+
+    plt.plot(accuracy_guessed)
+    plt.title("Accuracy of Codemaster-Guesser Pair")
+    plt.savefig(params["output_dir"]+"accuracy_guessed.png")
     plt.clf()
 
 
@@ -567,7 +607,7 @@ if __name__ == '__main__':
     params["guesserBlue"] = initialize_player(args.guesserBlue, params, i2v, 1, 1)
 
 
-    score_plot, winner_plot, codemaster_tsm, guesser_tsm, codemaster_rn, guesser_rn = run(params, listOfWords, v2i, i2v)
+    score_plot, winner_plot, codemaster_tsm, guesser_tsm, codemaster_rn, guesser_rn, count_given, proportion_hintWords_guessed, accuracy_guessed, baseline_accuracy = run(params, listOfWords, v2i, i2v)
     
-    # store_metrics(params["output_dir"], score_plot, winner_plot, codemaster_tsm, guesser_tsm, codemaster_rn, guesser_rn)
+    store_metrics(params["output_dir"], score_plot, winner_plot, codemaster_tsm, guesser_tsm, codemaster_rn, guesser_rn, count_given, proportion_hintWords_guessed, accuracy_guessed, baseline_accuracy)
 
