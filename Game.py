@@ -1,7 +1,6 @@
 import numpy as np
 import random
 DEVICE = 'cpu' # 'cuda' if torch.cuda.is_available() else 'cpu'
-''' at some point go back and standardize upper camel case vs snake case'''
 
 class Game:
     ''' 
@@ -189,24 +188,6 @@ class Game:
 
         return state
 
-    # Guess a random word from the board
-    # Performs iterative guessing from all words on the board, checking to make sure that the word hasn't been guessed
-    # Also makes sure that not all words have been guessed
-    def generate_random_guess(self):
-        possible_guesses = np.concatenate(
-            (
-                np.nonzero(self.red_words_remaining)[0],
-                np.nonzero(self.blue_words_remaining)[0],
-                np.nonzero(self.neutral_words_remaining)[0],
-                np.nonzero(self.danger_words_remaining)[0]
-            )
-        )
-
-        # randint is inclusive on both sides
-        guess = random.randint(0, len(possible_guesses)-1)
-
-        return possible_guesses[guess]
-
     # Determines the top guess based on the model's prediction and based on the available words
     # Returns the index of the top word
     def get_guess_from_tensor(self, guessTensor):
@@ -227,16 +208,3 @@ class Game:
                 largest_logit = guessTensor[idx]
                 guess = idx
         return guess
-        
-    # Generates a random hint based on the vocabulary
-    def generate_random_hint(self):
-
-        hint = random.randint(0, self.vocab_size-1)
-        # ensure hint isn't in list of words
-        while hint in self.board:
-            hint = random.randint(0, self.vocab_size-1)
-
-        words_remaining = self.red_words_remaining_count if self.turn == 0 else self.blue_words_remaining_count
-        num_words = random.choice(range(1, words_remaining+1))
-
-        return hint, num_words

@@ -6,8 +6,8 @@ import collections
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torch.optim as optim
-import copy
+from gensim.models import Word2Vec
+from scipy.spatial.distance import cosine
 from Guesser import Guesser
 
 DEVICE = 'cpu' # 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -43,6 +43,7 @@ class AgentGuesser(Guesser):
         self.load_weights = params['load_weights']
         self.optimizer = None
         self.network()
+        self.w2v = Word2Vec()
           
     def network(self):
         # Layers
@@ -147,3 +148,36 @@ class AgentGuesser(Guesser):
         loss.backward()
         self.optimizer.step()
         return loss
+
+    # Guess a random word from the board
+    # Performs iterative guessing from all words on the board, checking to make sure that the word hasn't been guessed
+    # Also makes sure that not all words have been guessed
+    def generate_random_guess(self, red_words_remaining, blue_words_remaining, neutral_words_remaining, danger_words_remaining):
+        possible_guesses = np.concatenate(
+            (
+                np.nonzero(red_words_remaining)[0],
+                np.nonzero(blue_words_remaining)[0],
+                np.nonzero(neutral_words_remaining)[0],
+                np.nonzero(danger_words_remaining)[0]
+            )
+        )
+
+        # randint is inclusive on both sides
+        guess = random.randint(0, len(possible_guesses)-1)
+
+        return possible_guesses[guess]
+
+    def generate_structured_guess(self, red_words_remaining, blue_words_remaining, neutral_words_remaining, danger_words_remaining, hint):
+        possible_guesses = np.concatenate(
+            (
+                np.nonzero(red_words_remaining)[0],
+                np.nonzero(blue_words_remaining)[0],
+                np.nonzero(neutral_words_remaining)[0],
+                np.nonzero(danger_words_remaining)[0]
+            )
+        )
+
+        distances = [cosine(self.w2v.wv[self.i2v[possible_guesses[i]]], self.w2v.wv[self.i2v[hint]]) for i in range(len(possible_guesses))]
+        guessIndex = np.argmin(distances)
+
+        return possible_guesses[guessIndex]

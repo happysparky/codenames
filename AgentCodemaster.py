@@ -6,9 +6,9 @@ import collections
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torch.optim as optim
 import math
-import copy
+from gensim.models import Word2Vec
+from scipy.spatial.distance import cosine
 from Codemaster import Codemaster
 
 DEVICE = 'cpu' # 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -41,6 +41,7 @@ class AgentCodemaster(Codemaster):
         self.load_weights = params['load_weights']
         self.optimizer = None
         self.network()
+        self.w2v = Word2Vec()
           
     def network(self):
         # Layers
@@ -167,3 +168,24 @@ class AgentCodemaster(Codemaster):
         loss.backward()
         self.optimizer.step()
         return loss
+
+    # Generates a random hint based on the vocabulary
+    def generate_random_hint(self, vocab_size, board, turn, red_words_remaining_count, blue_words_remaining_count):
+        hint = random.randint(0, vocab_size-1)
+        # ensure hint isn't in list of words
+        while hint in board:
+            hint = random.randint(0, vocab_size-1)
+
+        words_remaining = red_words_remaining_count if turn == 0 else blue_words_remaining_count
+        num_words = random.choice(range(1, words_remaining+1))
+
+        return hint, num_words
+
+    # Generates a hint based on the available vocabulary: min cosine distance to any vocab word not in board
+    def generate_structured_hint(self, vocab_size, board, target_word_list):
+        dists = [cosine(self.w2v.wv[self.i2v[i]], self.w2v.wv[self.i2v[target_word_list[0]]]) if i not in board else 2 for i in range(vocab_size)]
+        hint = np.argmin(dists)
+
+        num_words = random.choice(range(1, len(target_word_list)+1))
+
+        return hint, num_words

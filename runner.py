@@ -30,7 +30,7 @@ def define_parameters():
     params['first_layer_size'] = 200    # neurons in the first layer
     params['second_layer_size'] = 20   # neurons in the second layer
     params['third_layer_size'] = 50    # neurons in the third layer
-    params['episodes'] = 1000
+    params['episodes'] = 5
     # params['episodes'] = 250          
     params['memory_size'] = 2500
     params['batch_size'] = 1000
@@ -217,7 +217,7 @@ def run(params, listOfWords, v2i, i2v):
             if type(curCodemaster) != HumanCodemaster:
                 randVal = random.uniform(0, 1)
                 if randVal < curCodemaster.epsilon:
-                    hint, count = game.generate_random_hint()
+                    hint, count = curCodemaster.generate_random_hint(game.vocab_size, game.board, game.turn, game.red_words_remaining_count, game.blue_words_remaining_count)
                 else:
                     # predict action based on the old state
                     with torch.no_grad():
@@ -277,7 +277,7 @@ def run(params, listOfWords, v2i, i2v):
 
                 if type(curGuesser) != HumanGuesser:
                     if random.uniform(0, 1) < curGuesser.epsilon:
-                        guess = game.generate_random_guess()
+                        guess = curGuesser.generate_random_guess(game.blue_words_remaining, game.red_words_remaining, game.neutral_words_remaining, game.danger_words_remaining)
                     else:
                         # predict action based on the old state
                         with torch.no_grad():
