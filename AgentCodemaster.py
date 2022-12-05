@@ -7,7 +7,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import math
-from gensim.models import Word2Vec
+import gensim.downloader
 from scipy.spatial.distance import cosine
 from Codemaster import Codemaster
 
@@ -41,11 +41,11 @@ class AgentCodemaster(Codemaster):
         self.load_weights = params['load_weights']
         self.optimizer = None
         self.network()
-        self.w2v = Word2Vec()
+        self.w2v = gensim.downloader.load("glove-wiki-gigaword-50")
           
     def network(self):
         # Layers
-        self.f1 = nn.Linear(6730, self.first_layer)
+        self.f1 = nn.Linear(6720, self.first_layer)
         self.f2 = nn.Linear(self.first_layer, self.second_layer)
         self.f3 = nn.Linear(self.second_layer, self.third_layer)
         self.hintLin = nn.Linear(self.third_layer, len(self.i2v))
@@ -135,10 +135,10 @@ class AgentCodemaster(Codemaster):
         target = (reward, reward)
 
         # a state contains 10 things to consider
-        # each of the 7 things has 673 (vocab size) spots
-        # 10 x 673 = 6730
-        next_state_tensor = next_state.double().clone().detach().reshape((1, 6730)).to(DEVICE)
-        state_tensor = state.double().clone().detach().reshape((1, 6730)).requires_grad_(True).to(DEVICE)
+        # each of the 7 things has 672 (vocab size) spots
+        # 10 x 672 = 6720
+        next_state_tensor = next_state.double().clone().detach().reshape((1, 6720)).to(DEVICE)
+        state_tensor = state.double().clone().detach().reshape((1, 6720)).requires_grad_(True).to(DEVICE)
 
 
         if not done:
@@ -183,8 +183,18 @@ class AgentCodemaster(Codemaster):
 
     # Generates a hint based on the available vocabulary: min cosine distance to any vocab word not in board
     def generate_structured_hint(self, vocab_size, board, target_word_list):
-        dists = [cosine(self.w2v.wv[self.i2v[i]], self.w2v.wv[self.i2v[target_word_list[0]]]) if i not in board else 2 for i in range(vocab_size)]
-        hint = np.argmin(dists)
+
+        distances = []
+
+        base_word = random.choice(target_word_list)
+        for i in range(vocab_size):
+            guessWord = self.i2v[i]
+            if base_word in self.w2v and guessWord in self.w2v and i not in board:
+                distances.append(cosine(self.w2v[base_word], self.w2v[guessWord]))
+            else:
+                distances.append(2)
+
+        hint = np.argmin(distances)
 
         num_words = random.choice(range(1, len(target_word_list)+1))
 

@@ -6,7 +6,7 @@ import collections
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from gensim.models import Word2Vec
+import gensim.downloader
 from scipy.spatial.distance import cosine
 from Guesser import Guesser
 
@@ -43,11 +43,11 @@ class AgentGuesser(Guesser):
         self.load_weights = params['load_weights']
         self.optimizer = None
         self.network()
-        self.w2v = Word2Vec()
+        self.w2v = gensim.downloader.load("glove-wiki-gigaword-50")
           
     def network(self):
         # Layers
-        self.f1 = nn.Linear(4711, self.first_layer)
+        self.f1 = nn.Linear(4704, self.first_layer)
         self.f2 = nn.Linear(self.first_layer, self.second_layer)
         self.f3 = nn.Linear(self.second_layer, self.third_layer)
         self.f4 = nn.Linear(self.third_layer, len(self.i2v))
@@ -131,11 +131,11 @@ class AgentGuesser(Guesser):
         target = reward
 
         # a state contains 7 things to consider
-        # each of the 7 things has 673 (vocab size) spots
-        # 7 x 673 = 4711
+        # each of the 7 things has 672 (vocab size) spots
+        # 7 x 672 = 4704
 
-        next_state_tensor = next_state.double().clone().detach().reshape((1, 4711)).to(DEVICE)
-        state_tensor = state.double().clone().detach().reshape((1, 4711)).requires_grad_(True).to(DEVICE)
+        next_state_tensor = next_state.double().clone().detach().reshape((1, 4704)).to(DEVICE)
+        state_tensor = state.double().clone().detach().reshape((1, 4704)).requires_grad_(True).to(DEVICE)
 
         if not done:
             target = reward + self.gamma * torch.max(self.forward(next_state_tensor[0]))
@@ -177,7 +177,16 @@ class AgentGuesser(Guesser):
             )
         )
 
-        distances = [cosine(self.w2v.wv[self.i2v[possible_guesses[i]]], self.w2v.wv[self.i2v[hint]]) for i in range(len(possible_guesses))]
+        distances = []
+
+        for i in range(len(possible_guesses)):
+            hintWord = self.i2v[hint]
+            guessWord = self.i2v[possible_guesses[i]]
+            if hintWord in self.w2v and guessWord in self.w2v:
+                distances.append(cosine(self.w2v[hintWord], self.w2v[guessWord]))
+            else:
+                distances.append(1)
+
         guessIndex = np.argmin(distances)
 
         return possible_guesses[guessIndex]
