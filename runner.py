@@ -490,43 +490,43 @@ def store_metrics(output_dir, score_plot, winner_plot, codemaster_tsm, guesser_t
         for acc in baseline_accuracy:
             f_out.write(str(acc) + "\n")
 
-    plt.scatter(range(1, len(score_plot)+1), score_plot, c=winner_plot)
+    plt.scatter(range(1, len(score_plot)+1), score_plot, c=winner_plot, s=0.8)
     plt.xlabel("Num games")
     plt.ylabel("Number of turns to win")
     plt.savefig(output_dir+"model_performance.png")
     plt.clf()
 
-    plt.plot(codemaster_tsm)
+    plt.plot(codemaster_tsm, linewidth=0.3)
     plt.title("Codemaster Train Short Memory Loss")
     plt.savefig(params["output_dir"]+"codemaster_tsm_loss.png")
     plt.clf()
 
-    plt.plot(guesser_tsm)
+    plt.plot(guesser_tsm, linewidth=0.3)
     plt.title("Guesser Train Short Memory Loss")
     plt.savefig(params["output_dir"]+"guesser_tsm_loss.png")
     plt.clf()
 
-    plt.plot(codemaster_rn)
+    plt.plot(codemaster_rn, linewidth=0.3)
     plt.title("Codemaster Replay New Loss")
     plt.savefig(params["output_dir"]+"codemaster_rn_loss.png")
     plt.clf()
 
-    plt.plot(codemaster_rn)
+    plt.plot(codemaster_rn, linewidth=0.3)
     plt.title("Guesser Replay New Loss")
     plt.savefig(params["output_dir"]+"guesser_rn_loss.png")
     plt.clf()
 
-    plt.plot(count_given)
+    plt.plot(count_given, linewidth=0.3)
     plt.title("Words Represented by Codemaster's Hints")
     plt.savefig(params["output_dir"]+"count.png")
     plt.clf()
 
-    plt.plot(proportion_hintWords_guessed)
+    plt.plot(proportion_hintWords_guessed, linewidth=0.3)
     plt.title("Accuracy of Codemaster Based on Hint Counts")
     plt.savefig(params["output_dir"]+"proportion_hint_guessed.png")
     plt.clf()
 
-    plt.plot(accuracy_guessed)
+    plt.plot(accuracy_guessed, linewidth=0.3)
     plt.title("Accuracy of Codemaster-Guesser Pair")
     plt.savefig(params["output_dir"]+"accuracy_guessed.png")
     plt.clf()
