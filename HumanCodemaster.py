@@ -19,9 +19,4 @@ class HumanCodemaster(Codemaster):
         hint = hint.lower()
         return (hint, count)
 
-    def set_reward(self, num_own_guessed, num_opposing_guessed, num_neutral_guessed, num_danger_guessed, num_previously_guessed, game_ended):
-        return 0
-
-    def train_short_memory(self, state, action, reward, next_state, done):
-        pass
         

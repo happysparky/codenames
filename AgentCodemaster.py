@@ -62,7 +62,7 @@ class AgentCodemaster(Codemaster):
         countTensor = F.softmax(self.countLin(x), dim=-1)
         return hintTensor, countTensor
 
-    def set_reward(self, num_own_guessed, num_opposing_guessed, num_neutral_guessed, num_danger_guessed, num_previously_guessed, game_ended):
+    def set_reward(self, num_own_guessed, num_opposing_guessed, num_neutral_guessed, num_danger_guessed, own_team_won=None):
         '''why do we store the reward instead of just returning it?'''
         ''' I think the danger word penality needs to increase. Max an agent can get is +80 or +90 
         if they guessed all 8 or 9 words in one go. Guessing the danger word should outweigh up to one step below'''
@@ -75,9 +75,15 @@ class AgentCodemaster(Codemaster):
             -5 when Player guesses neutral word
         """
 
-        # TODO: add a big reward for winning the game
 
-        self.reward = 10*num_own_guessed - 10*num_opposing_guessed - 5*num_neutral_guessed 
+        self.reward = 10*num_own_guessed - 10*num_opposing_guessed - 5*num_neutral_guessed - 100*num_danger_guessed
+        
+        if own_team_won != None:
+            if own_team_won == 0:
+                self.reward -= 50
+            else:
+                self.reward += 500
+
         return self.reward
 
     def remember(self, state, action, reward, next_state, done):

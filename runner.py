@@ -30,7 +30,7 @@ def define_parameters():
     params['first_layer_size'] = 200    # neurons in the first layer
     params['second_layer_size'] = 20   # neurons in the second layer
     params['third_layer_size'] = 50    # neurons in the third layer
-    params['episodes'] = 2
+    params['episodes'] = 50
     # params['episodes'] = 250          
     params['memory_size'] = 2500
     params['batch_size'] = 1000
@@ -39,7 +39,7 @@ def define_parameters():
     params['log_path'] = 'logs/scores_' + str(datetime.datetime.now().strftime("%Y%m%d%H%M%S")) +'.txt'
     return params
 
-def print_board(game, i2v, debug_mode):
+def print_board(game, i2v, debug_mode, turn=None):
     if game.turn == 0:
         print("\n" + bcolors.RED + "Red's Turn" + bcolors.ENDC)
     else:
@@ -80,13 +80,25 @@ def print_board(game, i2v, debug_mode):
                 print(bcolors.BLACK + current_word + bcolors.ENDC, end=end)
         else:
             if game.red_words_remaining[current_word_index] == 1:
-                print(bcolors.WHITE + current_word + bcolors.ENDC, end=end)
+                if turn == 0:
+                    print(bcolors.RED + current_word + bcolors.ENDC, end=end)
+                else:
+                    print(bcolors.WHITE + current_word + bcolors.ENDC, end=end)
             elif game.red_words_chosen[current_word_index] == 1: 
-                print(bcolors.RED + current_word + bcolors.ENDC, end=end)
+                if turn == 0:
+                    print(bcolors.MAGENTA + current_word + bcolors.ENDC, end=end)
+                else:
+                    print(bcolors.RED + current_word + bcolors.ENDC, end=end)
             elif game.blue_words_remaining[current_word_index] == 1:
-                print(bcolors.WHITE + current_word + bcolors.ENDC, end=end)
+                if turn == 1:
+                    print(bcolors.BLUE + current_word + bcolors.ENDC, end=end)
+                else:
+                    print(bcolors.WHITE + current_word + bcolors.ENDC, end=end)
             elif game.blue_words_chosen[current_word_index] == 1:
-                print(bcolors.BLUE + current_word + bcolors.ENDC, end=end)
+                if turn == 1:
+                    print(bcolors.CYAN + current_word + bcolors.ENDC, end=end)
+                else:
+                    print(bcolors.BLUE + current_word + bcolors.ENDC, end=end)
             elif game.neutral_words_remaining[current_word_index] == 1:
                 print(bcolors.WHITE + current_word + bcolors.ENDC, end=end)
             elif game.neutral_words_chosen[ current_word_index] == 1: 
@@ -115,26 +127,6 @@ def debug_display(game, i2v):
 
     print(bcolors.BLACK + "DANGER: " + str(indicesToWords(game.danger_words_remaining, i2v)) + bcolors.ENDC)
 
-
-# gets the hint and number of words the hint applies to. Ensures the hint and number of words the hint applies to is valid
-def get_humancodemaster_hint(human_codemaster, game):
-    gameWordBank = game.board
-    words_remaining = game.red_words_remaining_count if game.turn == 0 else game.blue_words_remaining_count
-
-    hint, num_words = human_codemaster.forward()
-
-    # the hint can't be a word on the board
-    # the number of words the hint applies to has to be > 0,  <= number of words remaining for the team, and an integer
-    while (hint in gameWordBank) or (num_words < 1) or (num_words > words_remaining) or (not isinstance(num_words, int)):
-        if hint in gameWordBank:
-            print(hint + " is on the board, please come up with a different hint. ")
-
-        else:
-            print("The number of words this hint applies to is invalid. Please ensure that it is an integer, greater than 0, and \
-            less than or equal to " + str(words_remaining) + ", the number of words left to guess for your team. ")
-        hint, num_words = human_codemaster.forward()
-
-    return hint, num_words
 
 def test(params):
     params['load_weights'] = True
@@ -179,21 +171,17 @@ def run(params, listOfWords, v2i, i2v):
         # Initialize game state
         gameWordbank = random.sample(listOfWords, k=25)
         gameIndexbank = wordsToIndices(gameWordbank, v2i)
-        game = Game(gameIndexbank, 1, len(v2i))
+        game = Game(gameIndexbank, 8, len(v2i))
 
         curCodemaster = params["codemasterRed"]
         curGuesser = params["guesserRed"]
-        
-        '''
-        look into what steps is used for
-        i re-implemented it but a game could end via steps instead of ending normally
-        '''
+
         steps = 0       # steps since the last positive reward
         while not game.end and steps < 200:
             
             if params["no_print"] == False:
                 if params["no_display"] == False:
-                    print_board(game, i2v, params["debug_mode"])
+                    print_board(game, i2v, params["debug_mode"], game.turn)
                     
                 if params["debug_mode"]:
                     debug_display(game, i2v)
@@ -240,11 +228,17 @@ def run(params, listOfWords, v2i, i2v):
                 else:
                     hint = v2i["<UNK>"]
 
+
             # perform new move and get new state
             count = game.process_hint(hint, count)
             count_given.append(count)
 
+
             if params["no_print"] == False:
+                # add spacing to move board out of terminal window so guessers can guess without exposing the words
+                print("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n")
+
+                print_board(game, i2v, params["debug_mode"])
                 print("The hint given was '" + i2v[hint] + "' and it applies to " + str(count) + " words.")
 
             # get old state
@@ -306,7 +300,7 @@ def run(params, listOfWords, v2i, i2v):
                 guesser_state_new = game.get_guesser_state()
 
                 # set reward for the new state
-                guesser_reward = curGuesser.set_reward(num_own_guessed, num_opposing_guessed, num_neutral_guessed, num_danger_guessed, num_previously_guessed, game.end)
+                guesser_reward = curGuesser.set_reward(num_own_guessed, num_opposing_guessed, num_neutral_guessed, num_danger_guessed, num_previously_guessed)
 
                 # perform model weight updates/loss/etc
                 if params['train']:
@@ -345,9 +339,16 @@ def run(params, listOfWords, v2i, i2v):
                         debug_display(game, i2v)
 
             # guesser reward and weight updates
-            ''' do we really have to reward the guesser again with accumulated stats? '''
-            guesser_reward = curGuesser.set_reward(accumulated_own_guessed, accumulated_opposing_guessed, accumulated_neutral_guessed, accumulated_danger_guessed, accumulated_previously_guessed, game.end)
-            codemaster_reward = curCodemaster.set_reward(accumulated_own_guessed, accumulated_opposing_guessed, accumulated_neutral_guessed, accumulated_danger_guessed, accumulated_previously_guessed, game.end)
+            own_team_won = None
+            if game.end:
+                if game.danger_words_remaining_count == 0:
+                    own_team_won = False
+                else:
+                    if (game.red_words_remaining_count == 0 and game.turn == 0) or (game.blue_words_remaining_count == 0 and game.turn == 1):
+                        own_team_won = True
+
+            guesser_reward = curGuesser.set_reward(accumulated_own_guessed, accumulated_opposing_guessed, accumulated_neutral_guessed, accumulated_danger_guessed, accumulated_previously_guessed, own_team_won)
+            codemaster_reward = curCodemaster.set_reward(accumulated_own_guessed, accumulated_opposing_guessed, accumulated_neutral_guessed, accumulated_danger_guessed, own_team_won)
             proportion_hintWords_guessed.append(accumulated_own_guessed/count) if count > 0 else proportion_hintWords_guessed.append(0)
             accuracy_guessed.append(accumulated_own_guessed/total_remaining)
             
@@ -404,9 +405,9 @@ def run(params, listOfWords, v2i, i2v):
 
         if game.danger_words_remaining_count == 0:
             if game.turn == 0:
-                winner = "blue"
+                winner = "cyan"
             else:
-                winner = "red"
+                winner = "magenta"
         elif game.red_words_remaining_count == 0:
                 winner = "red"
         else:
@@ -533,7 +534,7 @@ def store_metrics(output_dir, score_plot, winner_plot, codemaster_tsm, guesser_t
 
 
 # type = 0 is codemaster, type = 1 is guesser
-def initialize_player(player, params, i2v, team, type):
+def initialize_player(player, params, v2i, i2v, team, type):
 
     if type == 0:
         if player:
@@ -545,7 +546,7 @@ def initialize_player(player, params, i2v, team, type):
             return agent
     else:
         if player:
-            return HumanGuesser()
+            return HumanGuesser(v2i)
         else:
             agent = AgentGuesser(params, i2v, team)
             agent = agent.to(DEVICE).double()
@@ -604,10 +605,10 @@ if __name__ == '__main__':
     params['blue_guesser_weights'] = args.blue_guesser_weights
 
 
-    params["codemasterRed"] = initialize_player(args.codemasterRed, params, i2v, 0, 0)
-    params["codemasterBlue"] = initialize_player(args.codemasterBlue, params, i2v, 1, 0)
-    params["guesserRed"] = initialize_player(args.guesserRed, params, i2v, 0, 1)
-    params["guesserBlue"] = initialize_player(args.guesserBlue, params, i2v, 1, 1)
+    params["codemasterRed"] = initialize_player(args.codemasterRed, params, v2i, i2v, 0, 0)
+    params["codemasterBlue"] = initialize_player(args.codemasterBlue, params, v2i, i2v, 1, 0)
+    params["guesserRed"] = initialize_player(args.guesserRed, params, v2i, i2v, 0, 1)
+    params["guesserBlue"] = initialize_player(args.guesserBlue, params, v2i, i2v, 1, 1)
 
 
     score_plot, winner_plot, codemaster_tsm, guesser_tsm, codemaster_rn, guesser_rn, count_given, proportion_hintWords_guessed, accuracy_guessed, baseline_accuracy = run(params, listOfWords, v2i, i2v)

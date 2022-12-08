@@ -41,7 +41,7 @@ class Codemaster(torch.nn.Module):
     def forward(self, x):
        return
 
-    def set_reward(self, num_own_guessed, num_opposing_guessed, num_neutral_guessed, num_danger_guessed, num_previously_guessed, game_ended):
+    def set_reward(self, num_own_guessed, num_opposing_guessed, num_neutral_guessed, num_danger_guessed, own_team_won=None):
         ''' I think the danger word penality needs to increase. Max an agent can get is +80 or +90 
         if they guessed all 8 or 9 words in one go. Guessing the danger word should outweigh up to one step below'''
         """
@@ -57,24 +57,24 @@ class Codemaster(torch.nn.Module):
         # TODO: don't give more a clue that applies to more words than there are left
         # TODO: add "don't suggest a number greater than the words remaining"
 
-        return
+        return self.reward
 
     def remember(self, state, action, reward, next_state, done):
         """
         Store the <state, action, reward, next_state, is_done> tuple in a 
         memory buffer for replay memory.
         """
-        return
+        pass
 
     def replay_new(self, memory, batch_size):
         """
         Replay memory.
         """
-        return
+        return -1
 
     def train_short_memory(self, state, action, reward, next_state, done):
         """
         Train the DQN agent on the <state, action, reward, next_state, is_done>
         tuple at the current timestep.
         """
-        return
+        return -1
