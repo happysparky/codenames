@@ -63,9 +63,6 @@ class AgentCodemaster(Codemaster):
         return hintTensor, countTensor
 
     def set_reward(self, num_own_guessed, num_opposing_guessed, num_neutral_guessed, num_danger_guessed, own_team_won=None):
-        '''why do we store the reward instead of just returning it?'''
-        ''' I think the danger word penality needs to increase. Max an agent can get is +80 or +90 
-        if they guessed all 8 or 9 words in one go. Guessing the danger word should outweigh up to one step below'''
         """
         Return the reward.
         The reward is:

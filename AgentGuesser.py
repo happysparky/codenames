@@ -12,10 +12,6 @@ from Guesser import Guesser
 
 DEVICE = 'cpu' # 'cuda' if torch.cuda.is_available() else 'cpu'
 
-'''
-can probably rename this class to AgentGuesser or something to match HumanGuesser
-'''
-
 class AgentGuesser(Guesser):
     def __init__(self, params, i2v, team):
         super().__init__()
@@ -65,10 +61,6 @@ class AgentGuesser(Guesser):
         # print(x.size())
         return x
 
-    '''
-    NOTE: later, we will try to improve this reward policy. One strategy would be to pass in the two teams' remaining word count. 
-    This difference (for example) should motivate a "trailing" team to be riskier. Also add a huge reward for winning the game. 
-    '''
     def set_reward(self, num_own_guessed, num_opposing_guessed, num_neutral_guessed, num_danger_guessed, num_prev_guessed, own_team_won=None):
         """
         Return the reward.
@@ -106,7 +98,6 @@ class AgentGuesser(Guesser):
             self.train()
             torch.set_grad_enabled(True)
             target = reward
-            # changed float to double
             next_state_tensor = torch.flatten(torch.tensor(np.expand_dims(next_state, 0), dtype=torch.double)).to(DEVICE)
             state_tensor = torch.flatten(torch.tensor(np.expand_dims(state, 0), dtype=torch.double, requires_grad=True)).to(DEVICE)
 

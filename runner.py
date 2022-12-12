@@ -254,7 +254,6 @@ def run(params, listOfWords, v2i, i2v):
 
             # --- GUESSER ---
 
-
             # keep track of guesses made for codemaster and final guesser training
             accumulated_own_guessed = 0
             accumulated_opposing_guessed = 0
@@ -284,7 +283,6 @@ def run(params, listOfWords, v2i, i2v):
                             # generate remaining number of guesses
                             guess = curGuesser(guesser_state_old_tensor)
                             guess = game.get_guess_from_tensor(guess)
-
                 else:
                     guess = curGuesser()
 
@@ -376,18 +374,12 @@ def run(params, listOfWords, v2i, i2v):
                 guesser_loss = curGuesser.train_short_memory(hint_tensorguesser_state_old_tensor, guess, guesser_reward, guesser_state_new_tensor, game.end)
                 curGuesser.remember(hint_tensorguesser_state_old_tensor, guess, guesser_reward, guesser_state_new_tensor, game.end)
 
-                '''we could probably save some space if we moved the above code into the if statements so we don't have to store the states and stuff.
-                I know it detracts from the abstract interface for a codemaster/guesser by differentiating between agent vs human, but we already break
-                that interface in several other places already'''
                 if type(curCodemaster) == AgentCodemaster:
                     codemaster_tsm.append(codemaster_loss.item())
 
 
                 if type(curGuesser) == AgentGuesser:
                     guesser_tsm.append(guesser_loss.item())
-   
-
-
             
             # if the game hasn't ended, change turns
             if not game.end:
@@ -417,12 +409,7 @@ def run(params, listOfWords, v2i, i2v):
             print("Game finished!")
             print("Winner: ", winner)
 
-                
-        '''
-        different batch size for codemaster and guesser?
-        '''
         if params['train']:
-
             codemaster_loss = curCodemaster.replay_new(curCodemaster.memory, params['batch_size'])
             guesser_loss = curGuesser.replay_new(curGuesser.memory, params['batch_size'])
 
@@ -456,35 +443,35 @@ def run(params, listOfWords, v2i, i2v):
 
 def store_metrics(output_dir, score_plot, winner_plot, codemaster_tsm, guesser_tsm, codemaster_rn, guesser_rn, count_given, proportion_hintWords_guessed, accuracy_guessed, baseline_accuracy):
 
-    with open(params["output_dir"]+"codemaster_tsm_loss.txt", "w") as f_out:
+    with open(params["output_dir"]+"codemaster_tsm_loss.txt", "w+") as f_out:
         for loss in codemaster_tsm:
             f_out.write(str(loss) + "\n")
 
-    with open(params["output_dir"]+"guesser_tsm_loss.txt", "w") as f_out:
+    with open(params["output_dir"]+"guesser_tsm_loss.txt", "w+") as f_out:
         for loss in guesser_tsm:
             f_out.write(str(loss) + "\n")
         
-    with open(params["output_dir"]+"codemaster_rn_loss.txt", "w") as f_out:
+    with open(params["output_dir"]+"codemaster_rn_loss.txt", "w+") as f_out:
         for loss in codemaster_rn:
             f_out.write(str(loss) + "\n")
 
-    with open(params["output_dir"]+"guesser_rn_loss.txt", "w") as f_out:
+    with open(params["output_dir"]+"guesser_rn_loss.txt", "w+") as f_out:
         for loss in guesser_rn:
             f_out.write(str(loss) + "\n")
 
-    with open(params["output_dir"]+"count.txt", "w") as f_out:
+    with open(params["output_dir"]+"count.txt", "w+") as f_out:
         for count in count_given:
             f_out.write(str(count) + "\n")
 
-    with open(params["output_dir"]+"proportion_hint_guessed.txt", "w") as f_out:
+    with open(params["output_dir"]+"proportion_hint_guessed.txt", "w+") as f_out:
         for prop in proportion_hintWords_guessed:
             f_out.write(str(prop) + "\n")
 
-    with open(params["output_dir"]+"accuracy_guessed.txt", "w") as f_out:
+    with open(params["output_dir"]+"accuracy_guessed.txt", "w+") as f_out:
         for acc in accuracy_guessed:
             f_out.write(str(acc) + "\n")
 
-    with open(params["output_dir"]+"baseline_accuracy.txt", "w") as f_out:
+    with open(params["output_dir"]+"baseline_accuracy.txt", "w+") as f_out:
         f_out.write("Baseline Accuracy: " + str(sum(baseline_accuracy)/len(baseline_accuracy)) + "\n")
         f_out.write("This is the accuracy of the guesser if they guess randomly." + "\n\n\n\n")
         for acc in baseline_accuracy:
