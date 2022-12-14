@@ -6,11 +6,9 @@ from HumanCodemaster import HumanCodemaster
 from AgentCodemaster import AgentCodemaster
 from HumanGuesser import HumanGuesser
 from AgentGuesser import AgentGuesser
-from random import randint
 from Game import Game
 from bcolors import bcolors
 import random
-import statistics
 import torch.optim as optim
 import torch
 import datetime
@@ -560,7 +558,6 @@ if __name__ == '__main__':
     parser.add_argument("--no_print", help="Suppress all printing, including display", action='store_true')
     parser.add_argument("--test", help="load in weights and test the model playing an actual game", action="store_true")
 
-    parser.add_argument("--game_name", help="Name of game in log", default="default")
     parser.add_argument("--output_dir", help="where output metrics are stored", default="metrics/")
 
     args = parser.parse_args()
